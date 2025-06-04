@@ -1,589 +1,291 @@
-# 🚀 SCP File Transfer Manager                                                                                                                                                                               
+# 🚀 SCP File Transfer Manager v2.0.0                                                                                                                                                                               
 ## Program developed by Gustavo Wydler Azuaga - 2025-06-03
-                                                                                            
- **Advanced Interactive File Transfer Utility** 
- 
- - Robust
- - Colorful
- - Feature-rich SCP file transfer tool
- - Comprehensive connection management and safety features.                                             
-                                                                                                                                                                                                                        
- [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/yourusername/scp-manager)                                                                                                                                                                                                                                                  
- [![Bash](https://img.shields.io/badge/bash-4.0%2B-orange.svg)](https://www.gnu.org/software/bash/)                                                                                                                     
-                                                                                                                                                                                                                        
- ## 📋 Table of Contents                                                                                                                                                                                                                                                                                          
- - [Overview](#overview)                                                                                                                                                                                                
- - [Features](#features)                                                                                                                                                                                                
- - [Installation](#installation)                                                                                                                                                                                        
- - [Usage](#usage)                                                                                                                                                                                                      
- - [Connection Management](#connection-management)                                                                                                                                                                      
- - [File Transfer Operations](#file-transfer-operations)                                                                                                                                                                
- - [Configuration](#configuration)                                                                                                                                                                                      
- - [Directory Structure](#directory-structure)                                                                                                                                                                          
- - [Examples](#examples)                                                                                                                                                                                                
- - [Troubleshooting](#troubleshooting)                                                                                                                                                                                  
- - [Contributing](#contributing)                                                                                                                                                                                        
-                                                                                                                                                                                                                        
- ## 🎯 Overview                                                                                                                                                                                                         
-                                                                                                                                                                                                                        
- SCP Manager is an interactive bash utility that simplifies secure file transfers between local and remote systems using SCP (Secure Copy Protocol). It provides a user-friendly menu-driven interface with advanced    
- features like connection management, file conflict detection, debug modes, and comprehensive safety checks.                                                                                                            
-                                                                                                                                                                                                                        
- ### Key Benefits                                                                                                                                                                                                       
-                                                                                                                                                                                                                        
- - **Zero Configuration**: Works out of the box with intelligent defaults                                                                                                                                               
- - **Safety First**: File conflict detection prevents accidental overwrites                                                                                                                                             
- - **Connection Management**: Save and reuse SSH connection profiles                                                                                                                                                    
- - **Debug Support**: Comprehensive logging and verbose modes for troubleshooting                                                                                                                                       
- - **Cross-Platform**: Compatible with any Unix-like system with bash and SSH                                                                                                                                           
-                                                                                                                                                                                                                        
- ## ✨ Features                                                                                                                                                                                                          
-                                                                                                                                                                                                                        
- ### 🔐 Connection Management                                                                                                                                                                                           
- - **Persistent Storage**: JSON-based connection profiles in `~/.scp_manager/connections.json`                                                                                                                          
- - **Multiple Connections**: Store unlimited connection profiles with unique IDs                                                                                                                                        
- - **Authentication Methods**: SSH key files and password authentication                                                                                                                                                
- - **Connection Testing**: Validate connections before file transfers                                                                                                                                                   
- - **Import/Export**: Backup and restore connection profiles                                                                                                                                                            
-                                                                                                                                                                                                                        
- ### 📁 File Transfer Operations                                                                                                                                                                                        
- - **Bidirectional Transfers**: Upload (local → remote) and download (remote ← local)                                                                                                                                   
- - **Smart Recursive Detection**: Automatically handles files vs directories                                                                                                                                            
- - **Conflict Resolution**: Warns about existing files/directories before overwrite                                                                                                                                     
- - **Progress Monitoring**: Real-time transfer status and debugging information                                                                                                                                         
- - **Quick Transfers**: Manual connection entry for one-time transfers                                                                                                                                                  
-                                                                                                                                                                                                                        
- ### 🛡️ Safety Features                                                                                                                                                                                                
- - **Overwrite Protection**: Multi-level warnings before overwriting existing data                                                                                                                                      
- - **File Type Detection**: Differentiates between files and directories                                                                                                                                                
- - **Size Information**: Shows file sizes before overwrite decisions                                                                                                                                                    
- - **Confirmation Prompts**: Multiple confirmation levels for destructive operations                                                                                                                                    
-                                                                                                                                                                                                                        
- ### 🔧 Advanced Options                                                                                                                                                                                                
- - **Debug Mode**: Detailed command logging and SSH connection debugging                                                                                                                                                
- - **Verbose Mode**: Real-time SCP transfer progress and SSH handshake details                                                                                                                                          
- - **Configurable Timeouts**: Customizable SSH connection timeouts                                                                                                                                                      
- - **Remote Directory Browsing**: Interactive navigation of remote file systems                                                                                                                                         
-                                                                                                                                                                                                                        
- ## 🚀 Installation                                                                                                                                                                                                     
-                                                                                                                                                                                                                        
- ### Prerequisites                                                                                                                                                                                                      
-                                                                                                                                                                                                                        
- ```bash                                                                                                                                                                                                                
- # Required packages (Ubuntu/Debian)                                                                                                                                                                                    
- sudo apt update                                                                                                                                                                                                        
- sudo apt install openssh-client jq                                                                                                                                                                                     
-                                                                                                                                                                                                                        
- # Required packages (CentOS/RHEL)                                                                                                                                                                                      
- sudo yum install openssh-clients jq                                                                                                                                                                                    
-                                                                                                                                                                                                                        
- # Required packages (macOS)                                                                                                                                                                                            
- brew install jq                                                                                                                                                                                                        
- ```                                                                                                                                                                                                                    
-                                                                                                                                                                                                           
-                                                                                                                                                                                                                        
- ### Desktop Integration                                                                                                                                                                                                
-                                                                                                                                                                                                                        
- Create a desktop launcher:                                                                                                                                                                                             
-                                                                                                                                                                                                                        
- ```bash                                                                                                                                                                                                                
- # Copy to applications directory                                                                                                                                                                                       
- sudo cp scp_manager.sh /usr/local/bin/                                                                                                                                                                                 
-                                                                                                                                                                                                                        
- # Create desktop file                                                                                                                                                                                                  
- cat > ~/.local/share/applications/scp-manager.desktop << EOF                                                                                                                                                           
- [Desktop Entry]                                                                                                                                                                                                        
- Version=1.0                                                                                                                                                                                                            
- Type=Application                                                                                                                                                                                                       
- Name=SCP Manager                                                                                                                                                                                                       
- Comment=Advanced Interactive File Transfer Utility                                                                                                                                                                     
- Exec=gnome-terminal --title="SCP Manager" -- /usr/local/bin/scp_manager.sh                                                                                                                                             
- Icon=folder-remote                                                                                                                                                                                                     
- Terminal=false                                                                                                                                                                                                         
- Categories=Network;FileTransfer;Utility;System;                                                                                                                                                                        
- EOF                                                                                                                                                                                                                    
- ```                                                                                                                                                                                                                    
-                                                                                                                                                                                                                        
- ## 📖 Usage                                                                                                                                                                                                            
-                                                                                                                                                                                                                        
- ### Basic Usage                                                                                                                                                                                                        
-                                                                                                                                                                                                                        
- ```bash                                                                                                                                                                                                                
- # Start the interactive menu                                                                                                                                                                                           
- ./scp_manager.sh                                                                                                                                                                                                       
-                                                                                                                                                                                                                        
- # Start with debug mode enabled                                                                                                                                                                                        
- ./scp_manager.sh --debug                                                                                                                                                                                               
-                                                                                                                                                                                                                        
- # Start with verbose mode enabled                                                                                                                                                                                      
- ./scp_manager.sh --verbose                                                                                                                                                                                             
-                                                                                                                                                                                                                        
- # Set custom connection timeout                                                                                                                                                                                        
- ./scp_manager.sh --timeout 30                                                                                                                                                                                          
-                                                                                                                                                                                                                        
- # Show help                                                                                                                                                                                                            
- ./scp_manager.sh --help                                                                                                                                                                                                
- ```                                                                                                                                                                                                                    
-                                                                                                                                                                                                                        
- ### Main Menu Structure                                                                                                                                                                                                
-                                                                                                                                                                                                                        
- ```                                                                                                                                                                                                                    
- ════════════════════════════════════════════════════════════════════════════════════                                                                                                                                   
-                         🚀 SCP FILE TRANSFER MANAGER 🚀                                                                                                                                                                
-                   Advanced Interactive File Transfer Utility                                                                                                                                                           
-                            Version 1.0.0                                                                                                                                                                               
-                         ⏰ 2025-06-03 19:45:00                                                                                                                                                                          
- ════════════════════════════════════════════════════════════════════════════════════                                                                                                                                   
-                                                                                                                                                                                                                        
- 🔗 CONNECTION STATUS                                                                                                                                                                                                   
- ────────────────────────────────────────────────────────────────────────────────────                                                                                                                                   
- ❌ No connection configured                                                                                                                                                                                             
-                                                                                                                                                                                                                        
- ⚙️  SETTINGS                                                                                                                                                                                                           
- ────────────────────────────────────────────────────────────────────────────────────                                                                                                                                   
- Debug Mode:    🔴 OFF                                                                                                                                                                                                  
- Verbose Mode:  🔴 OFF                                                                                                                                                                                                  
- Timeout:       10s                                                                                                                                                                                                     
-                                                                                                                                                                                                                        
- ────────────────────────────────────────────────────────────────────────────────────                                                                                                                                   
-   Main Menu ⏰ 19:45:15                                                                                                                                                                                                 
- ────────────────────────────────────────────────────────────────────────────────────                                                                                                                                   
-                                                                                                                                                                                                                        
- [1] Setup Connection         Configure SSH connection to remote host                                                                                                                                                   
- [2] Manage Connections       View, edit, and manage saved connections                                                                                                                                                  
- [3] Browse Remote Files      Navigate and explore remote directories                                                                                                                                                   
- [4] Upload Files             Transfer files from local to remote                                                                                                                                                       
- [5] Download Files           Transfer files from remote to local                                                                                                                                                       
- [6] Quick Transfer           Fast file transfer with current settings                                                                                                                                                  
- [7] Settings                 Configure application settings                                                                                                                                                            
- [8] Help                     Show help and usage information                                                                                                                                                           
- [9] Exit                     Quit the application                                                                                                                                                                      
-                                                                                                                                                                                                                        
- ❯ Select option (1-9):                                                                                                                                                                                                 
- ```                                                                                                                                                                                                                    
-                                                                                                                                                                                                                        
- ## 🗄️ Connection Management                                                                                                                                                                                           
-                                                                                                                                                                                                                        
- ### Connection Storage Format                                                                                                                                                                                          
-                                                                                                                                                                                                                        
- Connections are stored in `~/.scp_manager/connections.json` with the following structure:                                                                                                                              
-                                                                                                                                                                                                                        
- ```json                                                                                                                                                                                                                
- [                                                                                                                                                                                                                      
-   {                                                                                                                                                                                                                    
-     "id": "ubuntu@192.168.1.100:22",                                                                                                                                                                                   
-     "name": "production_server",                                                                                                                                                                                       
-     "host": "192.168.1.100",                                                                                                                                                                                           
-     "user": "ubuntu",                                                                                                                                                                                                  
-     "port": "22",                                                                                                                                                                                                      
-     "ssh_key": "/home/user/.ssh/id_rsa",                                                                                                                                                                               
-     "remote_path": "/var/www",                                                                                                                                                                                         
-     "protocol": "ssh",                                                                                                                                                                                                 
-     "created": "2025-06-03 18:33:58",                                                                                                                                                                                  
-     "last_used": "2025-06-03 19:45:00"                                                                                                                                                                                 
-   },                                                                                                                                                                                                                   
-   {                                                                                                                                                                                                                    
-     "id": "admin@api.example.com:2222",                                                                                                                                                                                
-     "name": "api_server",                                                                                                                                                                                              
-     "host": "api.example.com",                                                                                                                                                                                         
-     "user": "admin",                                                                                                                                                                                                   
-     "port": "2222",                                                                                                                                                                                                    
-     "ssh_key": "/home/user/.ssh/api_server_key",                                                                                                                                                                       
-     "remote_path": "~/deployments",                                                                                                                                                                                    
-     "protocol": "ssh",                                                                                                                                                                                                 
-     "created": "2025-06-03 19:00:00",                                                                                                                                                                                  
-     "last_used": "2025-06-03 19:30:00"                                                                                                                                                                                 
-   }                                                                                                                                                                                                                    
- ]                                                                                                                                                                                                                      
- ```                                                                                                                                                                                                                    
-                                                                                                                                                                                                                        
- ### Connection Fields                                                                                                                                                                                                  
-                                                                                                                                                                                                                        
- | Field | Description | Example |                                                                                                                                                                                      
- |-------|-------------|---------|                                                                                                                                                                                      
- | `id` | Unique identifier (user@host:port) | `ubuntu@192.168.1.100:22` |                                                                                                                                              
- | `name` | User-friendly connection name | `production_server` |                                                                                                                                                       
- | `host` | Remote hostname or IP address | `192.168.1.100` |                                                                                                                                                           
- | `user` | SSH username | `ubuntu` |                                                                                                                                                                                   
- | `port` | SSH port number | `22` |                                                                                                                                                                                    
- | `ssh_key` | Path to SSH private key file | `/home/user/.ssh/id_rsa` |                                                                                                                                                
- | `remote_path` | Default remote directory | `/var/www` |                                                                                                                                                              
- | `protocol` | Connection protocol (always "ssh") | `ssh` |                                                                                                                                                            
- | `created` | Creation timestamp | `2025-06-03 18:33:58` |                                                                                                                                                             
- | `last_used` | Last usage timestamp | `2025-06-03 19:45:00` |                                                                                                                                                         
-                                                                                                                                                                                                                        
- ### Connection Management Operations                                                                                                                                                                                   
-                                                                                                                                                                                                                        
- #### Creating Connections                                                                                                                                                                                              
- ```bash                                                                                                                                                                                                                
- # Option 1: Setup Connection                                                                                                                                                                                           
- # - Interactive prompts for all connection details                                                                                                                                                                     
- # - Automatic connection testing                                                                                                                                                                                       
- # - Saves successful connections automatically                                                                                                                                                                         
-                                                                                                                                                                                                                        
- # Option 2: Manual JSON editing                                                                                                                                                                                        
- # - Direct manipulation of connections.json                                                                                                                                                                            
- # - Bulk import/export capabilities                                                                                                                                                                                    
- ```                                                                                                                                                                                                                    
-                                                                                                                                                                                                                        
- #### Managing Existing Connections                                                                                                                                                                                     
- ```bash                                                                                                                                                                                                                
- # Option 2: Manage Connections submenu                                                                                                                                                                                 
- # [1] View All Connections     - List all saved connections                                                                                                                                                            
- # [2] Edit Connection          - Modify existing connection details                                                                                                                                                    
- # [3] Delete Connection        - Remove connection permanently                                                                                                                                                         
- # [4] Test Connection          - Validate connection without transfer                                                                                                                                                  
- # [5] Export Connections       - Backup connections to file                                                                                                                                                            
- # [6] Import Connections       - Restore connections from backup                                                                                                                                                       
- # [7] Back to Main Menu        - Return to main interface                                                                                                                                                              
- ```                                                                                                                                                                                                                    
-                                                                                                                                                                                                                        
- ## 📂 File Transfer Operations                                                                                                                                                                                         
-                                                                                                                                                                                                                        
- ### Upload Files (Option 4)                                                                                                                                                                                            
-                                                                                                                                                                                                                        
- Transfer files from local system to remote host using saved connections.                                                                                                                                               
-                                                                                                                                                                                                                        
- #### Example Upload Session                                                                                                                                                                                            
- ```bash                                                                                                                                                                                                                
- ❯ Select option (1-9): 4                                                                                                                                                                                               
-                                                                                                                                                                                                                        
- ────────────────────────────────────────────────────────────────────────────────────                                                                                                                                   
-   Upload Files to Remote Host ⏰ 19:45:30                                                                                                                                                                               
- ────────────────────────────────────────────────────────────────────────────────────                                                                                                                                   
-                                                                                                                                                                                                                        
- ────────────────────────────────────────────────────────────────────────────────────                                                                                                                                   
-   Select Connection for Upload ⏰ 19:45:31                                                                                                                                                                              
- ────────────────────────────────────────────────────────────────────────────────────                                                                                                                                   
-                                                                                                                                                                                                                        
- Available connections:                                                                                                                                                                                                 
- [1] production_server         ubuntu@192.168.1.100                                                                                                                                                                     
- [2] api_server               admin@api.example.com                                                                                                                                                                     
-                                                                                                                                                                                                                        
- [c] Cancel - Return to main menu                                                                                                                                                                                       
-                                                                                                                                                                                                                        
- ❯ Select connection (1-2) or 'c' to cancel: 1                                                                                                                                                                          
- ⏳ Loading connection...                                                                                                                                                                                                
- ✅ Loaded connection: ubuntu@192.168.1.100:22                                                                                                                                                                           
-                                                                                                                                                                                                                        
- ❯ Local file/directory path to upload [default: /current/directory]: ./myapp.tar.gz                                                                                                                                    
- ❯ Remote destination path [default: /var/www]: /var/www/releases/                                                                                                                                                      
-                                                                                                                                                                                                                        
- 📤 UPLOAD SUMMARY                                                                                                                                                                                                      
- ==================================================                                                                                                                                                                     
- Source:      ./myapp.tar.gz                                                                                                                                                                                            
- Destination: ubuntu@192.168.1.100:/var/www/releases/                                                                                                                                                                   
- SSH Key:     /home/user/.ssh/id_rsa                                                                                                                                                                                    
-                                                                                                                                                                                                                        
- ❯ Proceed with upload? (y/N) [default: n]: y                                                                                                                                                                           
- ⏳ Executing file transfer...                                                                                                                                                                                           
- ✅ File transfer completed successfully!                                                                                                                                                                                
- ```                                                                                                                                                                                                                    
-                                                                                                                                                                                                                        
- ### Download Files (Option 5)                                                                                                                                                                                          
-                                                                                                                                                                                                                        
- Transfer files from remote host to local system using saved connections.                                                                                                                                               
-                                                                                                                                                                                                                        
- #### File Conflict Detection                                                                                                                                                                                           
- ```bash                                                                                                                                                                                                                
- ❯ Select option (1-9): 5                                                                                                                                                                                               
-                                                                                                                                                                                                                        
- ❯ Remote file/directory path to download [default: /var/www]: ~/logs/app.log                                                                                                                                           
- ❯ Local destination path [default: /home/user]: ./logs/                                                                                                                                                                
-                                                                                                                                                                                                                        
- ⚠️  WARNING: Destination already exists!                                                                                                                                                                               
-    File: ./logs/app.log                                                                                                                                                                                                
-    Size: 2.5M                                                                                                                                                                                                          
-                                                                                                                                                                                                                        
- ❯ This will overwrite the existing file/directory. Continue? (y/N) [default: n]: y                                                                                                                                     
-                                                                                                                                                                                                                        
- 📥 DOWNLOAD SUMMARY                                                                                                                                                                                                    
- ==================================================                                                                                                                                                                     
- Source:      ubuntu@192.168.1.100:~/logs/app.log                                                                                                                                                                       
- Destination: ./logs/                                                                                                                                                                                                   
- SSH Key:     /home/user/.ssh/id_rsa                                                                                                                                                                                    
-                                                                                                                                                                                                                        
- ❯ Proceed with download? (y/N) [default: n]: y                                                                                                                                                                         
- ⏳ Executing file transfer...                                                                                                                                                                                           
- ✅ File transfer completed successfully!                                                                                                                                                                                
- ```                                                                                                                                                                                                                    
-                                                                                                                                                                                                                        
- ### Quick Transfer (Option 6)                                                                                                                                                                                          
-                                                                                                                                                                                                                        
- Manual connection entry for one-time transfers without saving connection details.                                                                                                                                      
-                                                                                                                                                                                                                        
- #### Quick Upload Example                                                                                                                                                                                              
- ```bash                                                                                                                                                                                                                
- ❯ Select option (1-9): 6                                                                                                                                                                                               
-                                                                                                                                                                                                                        
- ────────────────────────────────────────────────────────────────────────────────────                                                                                                                                   
-   Quick Transfer ⏰ 19:46:00                                                                                                                                                                                            
- ────────────────────────────────────────────────────────────────────────────────────                                                                                                                                   
-                                                                                                                                                                                                                        
- ℹ️  Quick Transfer allows you to enter connection details manually each time.                                                                                                                                          
-    For saved connections, use Options 4 or 5 (Upload/Download Files).                                                                                                                                                  
-                                                                                                                                                                                                                        
- [1] Quick Upload             Upload with manual connection details                                                                                                                                                     
- [2] Quick Download           Download with manual connection details                                                                                                                                                   
- [3] Back to Main Menu        Return to main menu                                                                                                                                                                       
-                                                                                                                                                                                                                        
- ❯ Select option (1-3): 1                                                                                                                                                                                               
-                                                                                                                                                                                                                        
- ────────────────────────────────────────────────────────────────────────────────────                                                                                                                                   
-   Quick Upload - Manual Connection ⏰ 19:46:05                                                                                                                                                                          
- ────────────────────────────────────────────────────────────────────────────────────                                                                                                                                   
-                                                                                                                                                                                                                        
- ❯ Remote hostname or IP: api.example.com                                                                                                                                                                               
- ❯ Remote username [default: ubuntu]: admin                                                                                                                                                                             
- ❯ SSH port [default: 22]: 2222                                                                                                                                                                                         
- ❯ SSH key path (leave empty for password auth): /home/user/.ssh/api_key                                                                                                                                                
-                                                                                                                                                                                                                        
- ❯ Local source path [default: /current/directory]: ./deployment.zip                                                                                                                                                    
- ❯ Remote destination path [default: ~]: ~/staging/                                                                                                                                                                     
-                                                                                                                                                                                                                        
- 📤 QUICK UPLOAD SUMMARY                                                                                                                                                                                                
- ==================================================                                                                                                                                                                     
- Source:      ./deployment.zip                                                                                                                                                                                          
- Destination: admin@api.example.com:~/staging/                                                                                                                                                                          
- SSH Key:     /home/user/.ssh/api_key                                                                                                                                                                                   
-                                                                                                                                                                                                                        
- ❯ Proceed with upload? (y/N) [default: n]: y                                                                                                                                                                           
- ⏳ Executing quick upload...                                                                                                                                                                                            
- ✅ Quick upload completed successfully!                                                                                                                                                                                 
- ```                                                                                                                                                                                                                    
-                                                                                                                                                                                                                        
- ## ⚙️ Configuration                                                                                                                                                                                                    
-                                                                                                                                                                                                                        
- ### Settings Menu (Option 7)                                                                                                                                                                                           
-                                                                                                                                                                                                                        
- ```bash                                                                                                                                                                                                                
- ────────────────────────────────────────────────────────────────────────────────────                                                                                                                                   
-   Settings & Configuration ⏰ 19:46:30                                                                                                                                                                                  
- ────────────────────────────────────────────────────────────────────────────────────                                                                                                                                   
-                                                                                                                                                                                                                        
- [1] Toggle Debug Mode        Enable/disable debug output                                                                                                                                                               
- [2] Toggle Verbose Mode      Enable/disable verbose SCP output                                                                                                                                                         
- [3] Set Connection Timeout   Change SSH connection timeout                                                                                                                                                             
- [4] Clear Saved Connections  Remove all saved connections                                                                                                                                                              
- [5] Show Connection Info     Display current connection details                                                                                                                                                        
- [6] Back to Main Menu        Return to main menu                                                                                                                                                                       
- ```                                                                                                                                                                                                                    
-                                                                                                                                                                                                                        
- #### Debug Mode Features                                                                                                                                                                                               
- ```bash                                                                                                                                                                                                                
- # When DEBUG=true, you'll see:                                                                                                                                                                                         
- 🐛 DEBUG: Starting upload_files function                                                                                                                                                                               
- 🐛 DEBUG: Built SCP command: scp -P 22 -o ConnectTimeout=10 -o StrictHostKeyChecking=no -i /home/user/.ssh/id_rsa 'file.txt' 'user@host:~/destination/'                                                                
- 🐛 DEBUG: Executing command                                                                                                                                                                                            
- 🐛 DEBUG: Transfer successful with exit code: 0                                                                                                                                                                        
- ```                                                                                                                                                                                                                    
-                                                                                                                                                                                                                        
- #### Verbose Mode Features                                                                                                                                                                                             
- ```bash                                                                                                                                                                                                                
- # When VERBOSE=true, SCP shows detailed progress:                                                                                                                                                                      
- OpenSSH_8.2p1 Ubuntu-4ubuntu0.13, OpenSSL 1.1.1f  31 Mar 2020                                                                                                                                                          
- debug1: Reading configuration data /home/user/.ssh/config                                                                                                                                                              
- debug1: Connecting to 192.168.1.100 [192.168.1.100] port 22.                                                                                                                                                           
- debug1: Connection established.                                                                                                                                                                                        
- debug1: Authentication succeeded (publickey).                                                                                                                                                                          
- Sending file modes: C0644 1048576 myfile.txt                                                                                                                                                                           
- myfile.txt                    100% 1024KB   2.5MB/s   00:00                                                                                                                                                            
- ```                                                                                                                                                                                                                    
-                                                                                                                                                                                                                        
- ## 📁 Directory Structure                                                                                                                                                                                              
-                                                                                                                                                                                                                        
- ### Program Files                                                                                                                                                                                                      
- ```                                                                                                                                                                                                                    
- /usr/local/bin/scp_manager.sh          # Main executable script                                                                                                                                                        
- ~/.local/share/applications/            # Desktop integration                                                                                                                                                          
-     scp-manager.desktop                                                                                                                                                                                                
- ```                                                                                                                                                                                                                    
-                                                                                                                                                                                                                        
- ### User Data Directory                                                                                                                                                                                                
- ```                                                                                                                                                                                                                    
- ~/.scp_manager/                         # Configuration directory                                                                                                                                                      
- ├── connections.json                    # Saved connection profiles                                                                                                                                                    
- └── logs/                              # Log files (if implemented)                                                                                                                                                    
-     ├── debug.log                                                                                                                                                                                                      
-     └── transfers.log                                                                                                                                                                                                  
- ```                                                                                                                                                                                                                    
-                                                                                                                                                                                                                        
- ### Directory Creation Logic                                                                                                                                                                                           
-                                                                                                                                                                                                                        
- The program automatically creates the configuration directory structure:                                                                                                                                               
-                                                                                                                                                                                                                        
- ```bash                                                                                                                                                                                                                
- initialize_connections_dir() {                                                                                                                                                                                         
-     if [[ ! -d "$CONNECTIONS_DIR" ]]; then                                                                                                                                                                             
-         mkdir -p "$CONNECTIONS_DIR"                                                                                                                                                                                    
-         debug_log "Created connections directory: $CONNECTIONS_DIR"                                                                                                                                                    
-     fi                                                                                                                                                                                                                 
-                                                                                                                                                                                                                        
-     if [[ ! -f "$SAVED_CONNECTIONS_FILE" ]]; then                                                                                                                                                                      
-         echo "[]" > "$SAVED_CONNECTIONS_FILE"                                                                                                                                                                          
-         debug_log "Created connections file: $SAVED_CONNECTIONS_FILE"                                                                                                                                                  
-     fi                                                                                                                                                                                                                 
- }                                                                                                                                                                                                                      
- ```                                                                                                                                                                                                                    
-                                                                                                                                                                                                                        
- ## 🔍 Examples                                                                                                                                                                                                         
-                                                                                                                                                                                                                        
- ### Complete Upload Workflow                                                                                                                                                                                           
-                                                                                                                                                                                                                        
- ```bash                                                                                                                                                                                                                
- # 1. Start the program                                                                                                                                                                                                 
- ./scp_manager.sh                                                                                                                                                                                                       
-                                                                                                                                                                                                                        
- # 2. Setup a new connection (Option 1)                                                                                                                                                                                 
- ❯ Select option (1-9): 1                                                                                                                                                                                               
- ❯ Connection name: my_server                                                                                                                                                                                           
- ❯ Remote hostname or IP: 192.168.1.100                                                                                                                                                                                 
- ❯ Remote username: ubuntu                                                                                                                                                                                              
- ❯ SSH port [default: 22]: 22                                                                                                                                                                                           
- ❯ SSH key path: /home/user/.ssh/server_key                                                                                                                                                                             
- ❯ Default remote path: /var/www/html                                                                                                                                                                                   
-                                                                                                                                                                                                                        
- # 3. Upload files (Option 4)                                                                                                                                                                                           
- ❯ Select option (1-9): 4                                                                                                                                                                                               
- ❯ Select connection (1-1) or 'c' to cancel: 1                                                                                                                                                                          
- ❯ Local file/directory path to upload: ./website.tar.gz                                                                                                                                                                
- ❯ Remote destination path: /var/www/html/releases/                                                                                                                                                                     
- ❯ Proceed with upload? (y/N): y                                                                                                                                                                                        
- ✅ File transfer completed successfully!                                                                                                                                                                                
- ```                                                                                                                                                                                                                    
-                                                                                                                                                                                                                        
- ### Debugging Connection Issues                                                                                                                                                                                        
-                                                                                                                                                                                                                        
- ```bash                                                                                                                                                                                                                
- # Start with debug mode                                                                                                                                                                                                
- ./scp_manager.sh --debug --verbose                                                                                                                                                                                     
-                                                                                                                                                                                                                        
- # Or enable debugging through settings menu                                                                                                                                                                            
- ❯ Select option (1-9): 7  # Settings                                                                                                                                                                                   
- ❯ Select option (1-6): 1  # Toggle Debug Mode                                                                                                                                                                          
- ❯ Select option (1-6): 2  # Toggle Verbose Mode                                                                                                                                                                        
-                                                                                                                                                                                                                        
- # Now all operations show detailed debugging information                                                                                                                                                               
- ```                                                                                                                                                                                                                    
-                                                                                                                                                                                                                        
- ### Batch Connection Management                                                                                                                                                                                        
-                                                                                                                                                                                                                        
- ```bash                                                                                                                                                                                                                
- # Export connections for backup                                                                                                                                                                                        
- ❯ Select option (1-9): 2  # Manage Connections                                                                                                                                                                         
- ❯ Select option (1-7): 5  # Export Connections                                                                                                                                                                         
- ❯ Export file path: ./my_connections_backup.json                                                                                                                                                                       
-                                                                                                                                                                                                                        
- # Import connections on another system                                                                                                                                                                                 
- ❯ Select option (1-9): 2  # Manage Connections                                                                                                                                                                         
- ❯ Select option (1-7): 6  # Import Connections                                                                                                                                                                         
- ❯ Import file path: ./my_connections_backup.json                                                                                                                                                                       
- ```                                                                                                                                                                                                                    
-                                                                                                                                                                                                                        
- ## 🐛 Troubleshooting                                                                                                                                                                                                  
-                                                                                                                                                                                                                        
- ### Common Issues                                                                                                                                                                                                      
-                                                                                                                                                                                                                        
- #### SSH Key Permission Problems                                                                                                                                                                                       
- ```bash                                                                                                                                                                                                                
- # Fix SSH key permissions                                                                                                                                                                                              
- chmod 600 ~/.ssh/your_key_file                                                                                                                                                                                         
- chmod 700 ~/.ssh                                                                                                                                                                                                       
- ```                                                                                                                                                                                                                    
-                                                                                                                                                                                                                        
- #### Connection Timeout Issues                                                                                                                                                                                         
- ```bash                                                                                                                                                                                                                
- # Increase timeout through settings menu                                                                                                                                                                               
- ❯ Select option (1-9): 7  # Settings                                                                                                                                                                                   
- ❯ Select option (1-6): 3  # Set Connection Timeout                                                                                                                                                                     
- ❯ Enter connection timeout (seconds): 30                                                                                                                                                                               
- ```                                                                                                                                                                                                                    
-                                                                                                                                                                                                                        
- #### File Transfer Errors                                                                                                                                                                                              
- ```bash                                                                                                                                                                                                                
- # Enable debug mode for detailed error information                                                                                                                                                                     
- ./scp_manager.sh --debug                                                                                                                                                                                               
-                                                                                                                                                                                                                        
- # Check SSH connectivity manually                                                                                                                                                                                      
- ssh -i /path/to/key user@host                                                                                                                                                                                          
-                                                                                                                                                                                                                        
- # Test SCP command manually                                                                                                                                                                                            
- scp -i /path/to/key file.txt user@host:~/destination/                                                                                                                                                                  
- ```                                                                                                                                                                                                                    
-                                                                                                                                                                                                                        
- ### Debug Information                                                                                                                                                                                                  
-                                                                                                                                                                                                                        
- When troubleshooting, the following information is helpful:                                                                                                                                                            
-                                                                                                                                                                                                                        
- ```bash                                                                                                                                                                                                                
- # System information                                                                                                                                                                                                   
- bash --version                                                                                                                                                                                                         
- ssh -V                                                                                                                                                                                                                 
- jq --version                                                                                                                                                                                                           
-                                                                                                                                                                                                                        
- # Network connectivity                                                                                                                                                                                                 
- ping hostname                                                                                                                                                                                                          
- telnet hostname 22                                                                                                                                                                                                     
-                                                                                                                                                                                                                        
- # SSH key validation                                                                                                                                                                                                   
- ssh-keygen -l -f /path/to/private/key                                                                                                                                                                                  
- ```                                                                                                                                                                                                                    
-                                                                                                                                                                                                                        
- ### Log Files                                                                                                                                                                                                          
-                                                                                                                                                                                                                        
- Debug information is displayed in real-time when debug mode is enabled. To capture logs:                                                                                                                               
-                                                                                                                                                                                                                        
- ```bash                                                                                                                                                                                                                
- # Run with output redirection                                                                                                                                                                                          
- ./scp_manager.sh --debug 2>&1 | tee scp_manager.log                                                                                                                                                                    
-                                                                                                                                                                                                                        
- # or within the program                                                                                                                                                                                                
- ❯ Select option (1-9): 7  # Settings                                                                                                                                                                                   
- ❯ Select option (1-6): 1  # Enable Debug Mode                                                                                                                                                                          
- ```                                                                                                                                                                                                                    
-                                                                                                                                                                                                                        
- ## 🤝 Contributing                                                                                                                                                                                                     
-                                                                                                                                                                                                                        
- Contributions are welcome! Please follow these guidelines:                                                                                                                                                             
-                                                                                                                                                                                                                        
- ### Development Setup                                                                                                                                                                                                  
-                                                                                                                                                                                                                        
- ```bash                                                                                                                                                                                                                
- # Clone the repository                                                                                                                                                                                                 
- git clone https://github.com/yourusername/scp-manager.git                                                                                                                                                              
- cd scp-manager                                                                                                                                                                                                         
-                                                                                                                                                                                                                        
- # Make it executable                                                                                                                                                                                                   
- chmod +x scp_manager.sh                                                                                                                                                                                                
-                                                                                                                                                                                                                        
- # Test your changes                                                                                                                                                                                                    
- bash -n scp_manager.sh  # Syntax check                                                                                                                                                                                 
- ./scp_manager.sh --help # Functionality test                                                                                                                                                                           
- ```                                                                                                                                                                                                                    
-                                                                                                                                                                                                                        
- ### Code Style                                                                                                                                                                                                         
-                                                                                                                                                                                                                        
- - Follow existing bash scripting conventions                                                                                                                                                                           
- - Use descriptive function and variable names                                                                                                                                                                          
- - Add comments for complex logic                                                                                                                                                                                       
- - Test all interactive features                                                                                                                                                                                        
- - Ensure compatibility with bash 4.0+                                                                                                                                                                                  
-                                                                                                                                                                                                                        
- ### Testing Checklist                                                                                                                                                                                                                                                                                            
- - [ ] Script syntax validation (`bash -n`)                                                                                                                                                                             
- - [ ] All menu options functional                                                                                                                                                                                      
- - [ ] File transfer operations work                                                                                                                                                                                    
- - [ ] Connection management features                                                                                                                                                                                   
- - [ ] Debug/verbose modes operational                                                                                                                                                                                  
- - [ ] Error handling covers edge cases                                                                                                                                                                                 
- - [ ] Cross-platform compatibility                                                                                                                                                                                                                                                              
- ## 🙏 Acknowledgments                                                                                                                                                                                                                                                                                         
- - Built with bash and standard Unix utilities                                                                                                                                                                          
- - Uses `jq` for JSON processing                                                                                                                                                                                        
- - Inspired by the need for better SCP workflow management                                                                                                                                                              
- - Color scheme and UI design for optimal terminal experience                                                                                                                                                           
-                                                                                                                                                                                                                        
-                                                                                                                           
+                                                                                        
+
+- Comprehensive.
+- Interactive bash-based SCP file transfer manager
+- Advanced features for efficient remote file operations.
+
+## Overview
+
+The SCP Manager is a feature-rich command-line utility that simplifies and enhances SCP (Secure Copy Protocol) file transfers between local and remote systems. Built entirely in bash, it provides an intuitive menu-driven interface with robust connection management, transfer validation, and progress monitoring.
+
+## Key Features
+
+### 🔐 Connection Management
+- **Multiple Connection Support**: Store unlimited SSH connections with unique random IDs (1-1000)
+- **Dual Authentication Methods**: SSH key-based and password authentication
+- **Connection Validation**: Test connections before transfers with persistent validation tracking
+- **Last Validation Tracking**: Automatic recording of connection test results with timestamps
+
+### 📁 Advanced File Transfer Options
+- **Transfer Type Selection**: 
+  - Single file transfer
+  - Whole directory transfer (with `-r` flag)
+  - Directory contents transfer (`/path/to/dir/*`)
+  - Multiple files transfer (space-separated)
+- **Bidirectional Operations**: Both upload and download support
+- **Wildcard Support**: Handle complex path patterns and wildcards safely
+- **Transfer Type Detection**: Automatic detection for saved transfers
+
+### 🎯 Navigation & Path Management
+- **Interactive Local Navigation**: Browse local filesystem with up/down/goto commands
+- **Remote Folder Navigator**: Browse remote directories with connection testing
+- **Saved Paths**: Store frequently used local and remote paths
+- **Path Validation**: Verify source and destination paths before transfer
+
+### 📊 Transfer Monitoring & Analysis
+- **Live Progress Display**: Native SCP progress bars with real-time transfer rates
+- **Intelligent Transfer Analysis**: 
+  - ✅ **Success** (GREEN): All files transferred successfully
+  - ⚠️ **Partial** (YELLOW): Some files succeeded, some failed
+  - ❌ **Failed** (RED): Transfer failed completely
+- **Detailed Logging**: Comprehensive transfer logs with error categorization
+- **Exit Code Analysis**: Proper interpretation of SCP exit codes
+
+### 💾 Persistent Storage
+- **JSON Configuration**: All settings stored in JSON format
+- **Connection Persistence**: Saved connections with validation history
+- **Transfer History**: Track previous transfers and their outcomes
+- **Settings Management**: Configurable options and preferences
+
+## Installation
+
+1. **Download the script**:
+   ```bash
+   curl -o ~/scp_manager.sh https://raw.githubusercontent.com/your-repo/scp_manager.sh
+   chmod +x ~/scp_manager.sh
+   ```
+
+2. **Create configuration directory**:
+   ```bash
+   mkdir -p ~/.scp_manager
+   ```
+
+3. **Install dependencies** (if not already installed):
+   ```bash
+   # For password authentication (optional)
+   sudo apt-get install sshpass  # Ubuntu/Debian
+   sudo yum install sshpass      # CentOS/RHEL
+   
+   # For JSON processing
+   sudo apt-get install jq       # Ubuntu/Debian
+   sudo yum install jq           # CentOS/RHEL
+   ```
+
+## Usage
+
+### Starting the Manager
+```bash
+./scp_manager.sh
+```
+
+### Main Menu Options
+
+1. **Quick Transfer**: Immediate file transfer with connection setup
+2. **Manage Connections**: Add, edit, delete, and test SSH connections
+3. **Manage Saved Paths**: Store and organize frequently used paths
+4. **Execute Saved Transfers**: Run pre-configured transfer operations
+5. **Settings**: Configure manager preferences and options
+
+### Connection Setup
+
+#### SSH Key Authentication
+```
+Host: your-server.com
+Username: your-username
+SSH Key Path: /home/user/.ssh/id_rsa
+```
+
+#### Password Authentication
+```
+Host: your-server.com
+Username: your-username
+Authentication: Password (will prompt securely)
+```
+
+### Transfer Types
+
+#### Single File Transfer
+- **Upload**: `./local-file.txt` → `user@host:/remote/path/file.txt`
+- **Download**: `user@host:/remote/file.txt` → `./local-directory/`
+
+#### Directory Transfer
+- **Whole Directory**: Transfers directory and all contents recursively
+- **Directory Contents**: Transfers only the contents of a directory (using `/*`)
+
+#### Multiple Files
+- **Space-separated**: `file1.txt file2.txt file3.txt`
+- **Wildcard patterns**: `*.txt`, `data_*.csv`
+
+## Configuration Files
+
+### ~/.scp_manager/connections.json
+Stores SSH connection configurations:
+```json
+[
+  {
+    "id": 42,
+    "host": "server.example.com",
+    "username": "admin",
+    "ssh_key": "/home/user/.ssh/id_rsa",
+    "auth_method": "key"
+  },
+  {
+    "id": 156,
+    "host": "backup.example.com", 
+    "username": "backup",
+    "auth_method": "password"
+  }
+]
+```
+
+### ~/.scp_manager/saved_paths.json
+Stores frequently used paths:
+```json
+{
+  "local": [
+    "/home/user/documents",
+    "/var/log/application"
+  ],
+  "remote": [
+    "/opt/application/config",
+    "/backup/daily"
+  ]
+}
+```
+
+### ~/.scp_manager/last_validation.json
+Tracks connection validation results:
+```json
+{
+  "connection_id": 42,
+  "host": "server.example.com",
+  "validation_time": "2024-01-15 14:30:22",
+  "validation_success": true,
+  "validation_details": "SSH connection successful"
+}
+```
+
+## Advanced Features
+
+### Transfer Type Detection
+The manager automatically detects transfer types for saved transfers:
+- Analyzes source and destination paths
+- Determines if `-r` flag is needed for directories
+- Handles wildcard patterns safely
+- Prevents "ambiguous target" errors
+
+### Connection Validation System
+- **Pre-transfer Testing**: Validates connections before attempting transfers
+- **Authentication Method Aware**: Different validation for SSH keys vs passwords
+- **Persistent Tracking**: Remembers last validation results
+- **Smart Retry Logic**: Handles temporary connection issues
+
+### Enhanced SCP Command Building
+```bash
+# Example generated commands:
+scp -r /local/directory/ user@host:/remote/path/          # Directory transfer
+scp /local/file.txt user@host:/remote/path/file.txt       # Single file
+scp -i ~/.ssh/key user@host:/remote/*.txt /local/path/    # Key-based with wildcards
+```
+
+### Live Progress Monitoring
+Uses `script` command to capture native SCP output:
+- Real-time progress bars
+- Transfer speed indicators
+- File-by-file progress for multiple transfers
+- Proper ANSI color handling
+
+## Error Handling & Troubleshooting
+
+### Common Issues
+
+#### Permission Denied
+```
+Error: Permission denied (publickey,password)
+Solution: Check SSH key permissions or password authentication setup
+```
+
+#### Connection Timeout
+```
+Error: Connection timed out
+Solution: Verify host connectivity and firewall settings
+```
+
+#### File Not Found
+```
+Error: No such file or directory
+Solution: Verify source path exists and is accessible
+```
+
+### Transfer Status Indicators
+
+- 🟢 **GREEN Success**: All files transferred successfully (exit code 0)
+- 🟡 **YELLOW Partial**: Some files succeeded, some failed (exit code ≠ 0, but some 100% transfers)
+- 🔴 **RED Failed**: Transfer failed completely (exit code ≠ 0, no successful transfers)
+
+### Debug Mode
+Enable verbose output for troubleshooting:
+```bash
+DEBUG=1 ./scp_manager.sh
+```
+
+## Security Considerations
+
+### SSH Key Security
+- Store private keys with proper permissions (600)
+- Use passphrase-protected keys when possible
+- Regularly rotate SSH keys
+
+### Password Authentication
+- Passwords are prompted securely and not stored
+- Uses `sshpass` for automated password entry
+- Consider using SSH keys for enhanced security
+
+### File Permissions
+- Configuration files created with restrictive permissions
+- Temporary files cleaned up automatically
+- No sensitive data logged in plain text
+
+## Version History
+
+### v2.0.0 (Current)
+- **Enhanced Transfer Types**: Comprehensive transfer type selection and detection
+- **Live Progress Display**: Native SCP progress bars with real-time monitoring
+- **Intelligent Analysis**: Accurate success/partial/failure detection with color coding
+- **Wildcard Support**: Safe handling of wildcard patterns in saved transfers
+- **Connection Validation**: Robust testing system with persistent tracking
+- **Random Connection IDs**: Unique identification system (1-1000) for unlimited connections
+- **Password Authentication**: Secure password prompting with sshpass integration
+- **Interactive Navigation**: Fixed hanging issues with local/remote folder browsing
+- **Enhanced Command Building**: Intelligent SCP command construction with transfer type detection
+
+### v1.0.0
+- Initial release with basic SCP transfer functionality
+- Connection management and saved paths
+- Simple menu-driven interface
+
+## Contributing
+
+Contributions are welcome! Please ensure:
+- Bash compatibility across different systems
+- Comprehensive error handling
+- Consistent code style and documentation
+- Thorough testing of new features
+
+## License
+
+This project is open source. Use and modify freely while maintaining attribution.
+
+## Support
+
+For issues, feature requests, or contributions:
+- Check the troubleshooting section above
+- Review configuration file formats
+- Test with debug mode enabled
+- Verify dependencies are installed correctly
+
 
 ------------------------------------------------------------------------------------
 
