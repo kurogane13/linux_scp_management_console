@@ -1,290 +1,310 @@
-# 🚀 SCP File Transfer Manager v2.0.0                                                                                                                                                                               
+# 🚀 SCP File Transfer Manager v3.0.0                                                                                                                                                                               
 ## Program developed by Gustavo Wydler Azuaga - 2025-06-03
-                                                                                        
 
-- Comprehensive.
-- Interactive bash-based SCP file transfer manager
-- Advanced features for efficient remote file operations.
+![SCP Manager](https://img.shields.io/badge/Version-3.0.0-blue.svg) ![Bash](https://img.shields.io/badge/Language-Bash-green.svg) 
 
-## Overview
+An advanced interactive SCP file transfer utility with comprehensive debugging and logging capabilities. This powerful bash script provides a user-friendly interface for secure file transfers between local and remote systems with extensive monitoring and analysis features.
 
-The SCP Manager is a feature-rich command-line utility that simplifies and enhances SCP (Secure Copy Protocol) file transfers between local and remote systems. Built entirely in bash, it provides an intuitive menu-driven interface with robust connection management, transfer validation, and progress monitoring.
+## 🚀 Key Features
 
-## Key Features
+### Core Functionality
+- **Interactive SSH Connection Management** - Save, manage, and quickly reconnect to multiple remote hosts
+- **Advanced Remote Directory Navigation** - Browse and explore remote directories with detailed file listings
+- **Bidirectional File Transfers** - Upload and download files with progress tracking and error analysis
+- **Multiple Authentication Methods** - SSH keys, password authentication, and automatic key detection
+- **Enhanced Transfer Modes** - Standard transfers, quick transfers, and batch operations
 
-### 🔐 Connection Management
-- **Multiple Connection Support**: Store unlimited SSH connections with unique random IDs (1-1000)
-- **Dual Authentication Methods**: SSH key-based and password authentication
-- **Connection Validation**: Test connections before transfers with persistent validation tracking
-- **Last Validation Tracking**: Automatic recording of connection test results with timestamps
+### Version 3.0.0 New Features
+- **Comprehensive Logging System** - 11 advanced log analysis and search options
+- **Intelligent Color-Coded Debug Messages** - Red for errors, yellow for warnings, green for success
+- **Real-Time Debug/Verbose Status Indicators** - Visual status circles in main menu
+- **Advanced Transfer Analysis** - Success/failure classification with detailed statistics
+- **Enhanced Command Display** - Tree-like file path formatting for better readability
+- **Toggleable Debug Modes** - Independent control for different operation types
+- **Export Functionality** - Generate detailed analysis reports and statistics
+- **Improved Error Detection** - Advanced error classification and pattern recognition
 
-### 📁 Advanced File Transfer Options
-- **Transfer Type Selection**: 
-  - Single file transfer
-  - Whole directory transfer (with `-r` flag)
-  - Directory contents transfer (`/path/to/dir/*`)
-  - Multiple files transfer (space-separated)
-- **Bidirectional Operations**: Both upload and download support
-- **Wildcard Support**: Handle complex path patterns and wildcards safely
-- **Transfer Type Detection**: Automatic detection for saved transfers
+## 🛠️ Installation
 
-### 🎯 Navigation & Path Management
-- **Interactive Local Navigation**: Browse local filesystem with up/down/goto commands
-- **Remote Folder Navigator**: Browse remote directories with connection testing
-- **Saved Paths**: Store frequently used local and remote paths
-- **Path Validation**: Verify source and destination paths before transfer
-
-### 📊 Transfer Monitoring & Analysis
-- **Live Progress Display**: Native SCP progress bars with real-time transfer rates
-- **Intelligent Transfer Analysis**: 
-  - ✅ **Success** (GREEN): All files transferred successfully
-  - ⚠️ **Partial** (YELLOW): Some files succeeded, some failed
-  - ❌ **Failed** (RED): Transfer failed completely
-- **Detailed Logging**: Comprehensive transfer logs with error categorization
-- **Exit Code Analysis**: Proper interpretation of SCP exit codes
-
-### 💾 Persistent Storage
-- **JSON Configuration**: All settings stored in JSON format
-- **Connection Persistence**: Saved connections with validation history
-- **Transfer History**: Track previous transfers and their outcomes
-- **Settings Management**: Configurable options and preferences
-
-## Installation
-
-1. **Download the script**:
+1. **Download the script according to the desired version:**
    ```bash
-   curl -o ~/scp_manager.sh https://raw.githubusercontent.com/your-repo/scp_manager.sh
-   chmod +x ~/scp_manager.sh
+   wget https://github.com/username/scp-manager/raw/main/(scp_manager_version_file)
+   chmod +x (scp_manager_version_file)
    ```
 
-2. **Create configuration directory**:
+2. **Run the script:**
    ```bash
-   mkdir -p ~/.scp_manager
+   ./(scp_manager_version_file)
    ```
 
-3. **Install dependencies** (if not already installed):
-   ```bash
-   # For password authentication (optional)
-   sudo apt-get install sshpass  # Ubuntu/Debian
-   sudo yum install sshpass      # CentOS/RHEL
-   
-   # For JSON processing
-   sudo apt-get install jq       # Ubuntu/Debian
-   sudo yum install jq           # CentOS/RHEL
-   ```
+## 📊 Advanced Debugging & Logging System
 
-## Usage
-
-### Starting the Manager
+### Command Line Debug Options
 ```bash
-./scp_manager.sh
+# Basic debugging
+./scp_manager.sh --debug              # Enable comprehensive debug output
+./scp_manager.sh --verbose            # Enable verbose mode
+
+# Specific operation debugging
+./scp_manager.sh --verbose-ssh        # SSH-specific verbose output
+./scp_manager.sh --verbose-scp        # SCP-specific verbose output with analysis
+./scp_manager.sh --verbose-json       # JSON operations debugging
+./scp_manager.sh --verbose-file       # File operations debugging
+./scp_manager.sh --verbose-network    # Network operations debugging
+
+# Advanced debugging
+./scp_manager.sh --debug-functions    # Function entry/exit tracing
+./scp_manager.sh --debug-variables    # Variable tracking and validation
+./scp_manager.sh --debug-commands     # Command execution logging
+./scp_manager.sh --debug-all          # Enable all debugging modes
 ```
+
+### Comprehensive Logging Menu (Option 12)
+
+The advanced logging system provides 11 powerful analysis options:
+
+1. **View Recent Logs** - Last 50 entries with intelligent color coding
+2. **View Full Log** - Complete log with pagination support using `less`
+3. **Search by Section** - Filter by operation type (SSH, SCP, FILE, NET, JSON)
+4. **Search by Regex** - Advanced pattern matching with helpful examples
+5. **Filter by Time** - Time-based filtering with flexible date/time patterns
+6. **Error Analysis** - Comprehensive error statistics and recent error display
+7. **Transfer Analysis** - SCP transfer patterns, success rates, and detailed statistics
+8. **Connection Analysis** - SSH connection patterns and authentication tracking
+9. **Clear Debug Log** - Safe log clearing with confirmation prompts
+10. **Export Analysis** - Generate detailed analysis reports with comprehensive statistics
+11. **Back to Main Menu** - Return to main menu
+
+### Visual Status Indicators
+
+The main menu displays real-time debug/verbose status with colored indicators:
+- **Green circles (●)** - Mode enabled
+- **Red circles (●)** - Mode disabled
+- **Organized layout** - Pipe-separated display for clarity
+
+Example display:
+```
+🛠️ Debug & Verbose Status:
+| General Verbose: ● | SSH: ● | SCP: ● | JSON: ● | FILE: ● | NET: ● |
+| General Debug: ● | Functions: ● | Variables: ● | Commands: ● |
+```
+
+## 🔍 Color-Coded Debug Messages
+
+The system uses intelligent color coding throughout:
+- **🔴 Red**: Errors, failures, and critical issues
+- **🟡 Yellow**: Warnings, partial successes, and cautions
+- **🟢 Green**: Successful operations and confirmations
+- **🔵 Cyan**: SSH-related operations and information
+- **🟣 Purple**: Function tracing and authentication details
+- **⚪ White**: File operations and general information
+
+## 📁 File Structure & Locations
+
+```
+~/.scp_manager/
+├── debug.log                          # Comprehensive debug log file
+├── connections.json                   # Saved connection profiles
+├── saved_paths.json                  # Saved upload/download paths
+└── log_analysis_YYYYMMDD_HHMMSS.txt  # Exported analysis reports
+```
+
+## 🔧 Enhanced Transfer Features
+
+### Advanced SCP Command Construction
+- **Enhanced parameter handling** with validation
+- **Transfer type detection** (upload/download)
+- **Progress monitoring** with real-time feedback
+- **Error classification** and detailed analysis
+- **Native SCP output preservation** with proper TTY handling
+
+### Transfer Analysis Capabilities
+- **Success/Failure Classification** - Accurate transfer result detection
+- **Partial Transfer Detection** - Identify incomplete operations
+- **Error Count Tracking** - Real-time error monitoring
+- **Statistical Analysis** - Transfer patterns and success rates
+- **Performance Metrics** - Transfer speed and efficiency tracking
+
+### Enhanced Command Preview
+```
+🔍 Command that will be executed:
+├── Command: scp
+├── Options: -P 22 -o ConnectTimeout=10 -o StrictHostKeyChecking=no
+├── Authentication: SSH Key (/path/to/key)
+├── Source Files:
+│   ├── /local/path/file1.txt
+│   ├── /local/path/file2.txt
+│   └── /local/path/directory/
+└── Destination: user@host:/remote/path/
+```
+
+## 📋 Menu System
 
 ### Main Menu Options
+1. **Setup Connection** - Configure SSH connection to remote host
+2. **Manage Connections** - View, edit, and manage saved connections
+3. **Manage Saved Paths** - View, edit, and manage saved upload/download paths
+4. **Browse Remote Files** - Navigate and explore remote directories
+5. **Upload Files** - Transfer files from local to remote
+6. **Download Files** - Transfer files from remote to local
+7. **Manage Transfers** - Create, edit, and manage saved transfer configurations
+8. **Folder Navigator** - Interactive local folder navigation with multiple views
+9. **Remote Navigator** - Interactive remote folder navigation with multiple views
+10. **Quick Transfer** - Fast file transfer with current settings
+11. **Settings** - Configure application settings and debug modes
+12. **Logging** - Comprehensive log viewing, searching, and analysis
+13. **Help** - Show detailed help and usage information
+14. **Exit** - Quit the application
 
-1. **Quick Transfer**: Immediate file transfer with connection setup
-2. **Manage Connections**: Add, edit, delete, and test SSH connections
-3. **Manage Saved Paths**: Store and organize frequently used paths
-4. **Execute Saved Transfers**: Run pre-configured transfer operations
-5. **Settings**: Configure manager preferences and options
+## 🚀 Quick Start Guide
 
-### Connection Setup
+1. **Launch the application:**
+   ```bash
+   ./scp_manager.sh
+   ```
 
-#### SSH Key Authentication
-```
-Host: your-server.com
-Username: your-username
-SSH Key Path: /home/user/.ssh/id_rsa
-```
+2. **Setup your first connection:**
+   - Select option 1 (Setup Connection)
+   - Enter host, username, and authentication method
+   - Test the connection
 
-#### Password Authentication
-```
-Host: your-server.com
-Username: your-username
-Authentication: Password (will prompt securely)
-```
+3. **Enable debugging (optional):**
+   ```bash
+   ./scp_manager.sh --debug-all
+   ```
 
-### Transfer Types
+4. **Perform file transfers:**
+   - Use option 5 for uploads or option 6 for downloads
+   - Select files and destinations interactively
 
-#### Single File Transfer
-- **Upload**: `./local-file.txt` → `user@host:/remote/path/file.txt`
-- **Download**: `user@host:/remote/file.txt` → `./local-directory/`
+5. **Monitor and analyze:**
+   - Use option 12 (Logging) to view detailed logs
+   - Export analysis reports for detailed statistics
 
-#### Directory Transfer
-- **Whole Directory**: Transfers directory and all contents recursively
-- **Directory Contents**: Transfers only the contents of a directory (using `/*`)
+## 🔬 Advanced Usage Examples
 
-#### Multiple Files
-- **Space-separated**: `file1.txt file2.txt file3.txt`
-- **Wildcard patterns**: `*.txt`, `data_*.csv`
-
-## Configuration Files
-
-### ~/.scp_manager/connections.json
-Stores SSH connection configurations:
-```json
-[
-  {
-    "id": 42,
-    "host": "server.example.com",
-    "username": "admin",
-    "ssh_key": "/home/user/.ssh/id_rsa",
-    "auth_method": "key"
-  },
-  {
-    "id": 156,
-    "host": "backup.example.com", 
-    "username": "backup",
-    "auth_method": "password"
-  }
-]
-```
-
-### ~/.scp_manager/saved_paths.json
-Stores frequently used paths:
-```json
-{
-  "local": [
-    "/home/user/documents",
-    "/var/log/application"
-  ],
-  "remote": [
-    "/opt/application/config",
-    "/backup/daily"
-  ]
-}
-```
-
-### ~/.scp_manager/last_validation.json
-Tracks connection validation results:
-```json
-{
-  "connection_id": 42,
-  "host": "server.example.com",
-  "validation_time": "2024-01-15 14:30:22",
-  "validation_success": true,
-  "validation_details": "SSH connection successful"
-}
-```
-
-## Advanced Features
-
-### Transfer Type Detection
-The manager automatically detects transfer types for saved transfers:
-- Analyzes source and destination paths
-- Determines if `-r` flag is needed for directories
-- Handles wildcard patterns safely
-- Prevents "ambiguous target" errors
-
-### Connection Validation System
-- **Pre-transfer Testing**: Validates connections before attempting transfers
-- **Authentication Method Aware**: Different validation for SSH keys vs passwords
-- **Persistent Tracking**: Remembers last validation results
-- **Smart Retry Logic**: Handles temporary connection issues
-
-### Enhanced SCP Command Building
+### Debugging SSH Connection Issues
 ```bash
-# Example generated commands:
-scp -r /local/directory/ user@host:/remote/path/          # Directory transfer
-scp /local/file.txt user@host:/remote/path/file.txt       # Single file
-scp -i ~/.ssh/key user@host:/remote/*.txt /local/path/    # Key-based with wildcards
+# Enable SSH-specific debugging
+./scp_manager.sh --verbose-ssh --debug-functions
+
+# Then use the Logging menu to search for SSH errors:
+# Option 12 → Option 3 → Option 1 (SSH)
 ```
 
-### Live Progress Monitoring
-Uses `script` command to capture native SCP output:
-- Real-time progress bars
-- Transfer speed indicators
-- File-by-file progress for multiple transfers
-- Proper ANSI color handling
-
-## Error Handling & Troubleshooting
-
-### Common Issues
-
-#### Permission Denied
-```
-Error: Permission denied (publickey,password)
-Solution: Check SSH key permissions or password authentication setup
-```
-
-#### Connection Timeout
-```
-Error: Connection timed out
-Solution: Verify host connectivity and firewall settings
-```
-
-#### File Not Found
-```
-Error: No such file or directory
-Solution: Verify source path exists and is accessible
-```
-
-### Transfer Status Indicators
-
-- 🟢 **GREEN Success**: All files transferred successfully (exit code 0)
-- 🟡 **YELLOW Partial**: Some files succeeded, some failed (exit code ≠ 0, but some 100% transfers)
-- 🔴 **RED Failed**: Transfer failed completely (exit code ≠ 0, no successful transfers)
-
-### Debug Mode
-Enable verbose output for troubleshooting:
+### Analyzing Transfer Performance
 ```bash
-DEBUG=1 ./scp_manager.sh
+# Enable SCP debugging with full analysis
+./scp_manager.sh --verbose-scp --debug-all
+
+# Use Transfer Analysis in Logging menu:
+# Option 12 → Option 7 (Transfer Analysis)
 ```
 
-## Security Considerations
+### Exporting Detailed Reports
+```bash
+# Run with comprehensive debugging
+./scp_manager.sh --debug-all
 
-### SSH Key Security
-- Store private keys with proper permissions (600)
-- Use passphrase-protected keys when possible
-- Regularly rotate SSH keys
+# After operations, export analysis:
+# Option 12 → Option 10 (Export Analysis)
+```
 
-### Password Authentication
-- Passwords are prompted securely and not stored
-- Uses `sshpass` for automated password entry
-- Consider using SSH keys for enhanced security
+## 🔍 Log Analysis Examples
 
-### File Permissions
-- Configuration files created with restrictive permissions
-- Temporary files cleaned up automatically
-- No sensitive data logged in plain text
+### Search for Connection Errors
+```
+Menu → Logging → Search by Regex
+Pattern: "Connection.*failed|Permission denied|refused"
+```
 
-## Version History
+### Find Transfer Statistics
+```
+Menu → Logging → Transfer Analysis
+View success rates, error patterns, and performance metrics
+```
 
-### v2.0.0 (Current)
-- **Enhanced Transfer Types**: Comprehensive transfer type selection and detection
-- **Live Progress Display**: Native SCP progress bars with real-time monitoring
-- **Intelligent Analysis**: Accurate success/partial/failure detection with color coding
-- **Wildcard Support**: Safe handling of wildcard patterns in saved transfers
-- **Connection Validation**: Robust testing system with persistent tracking
-- **Random Connection IDs**: Unique identification system (1-1000) for unlimited connections
-- **Password Authentication**: Secure password prompting with sshpass integration
-- **Interactive Navigation**: Fixed hanging issues with local/remote folder browsing
-- **Enhanced Command Building**: Intelligent SCP command construction with transfer type detection
+### Time-Based Filtering
+```
+Menu → Logging → Filter by Time
+Pattern: "20:30" (after 8:30 PM)
+Pattern: "2025-06-04" (specific date)
+```
 
-### v1.0.0
-- Initial release with basic SCP transfer functionality
-- Connection management and saved paths
-- Simple menu-driven interface
+## 🛡️ Security Features
 
-## Contributing
+- **SSH Key Validation** - Comprehensive key file verification
+- **Secure Password Handling** - No password storage or logging
+- **Connection Timeout Management** - Configurable timeout settings
+- **Strict Host Key Checking** - Optional for enhanced security
+- **Debug Log Security** - No sensitive information in logs
 
-Contributions are welcome! Please ensure:
-- Bash compatibility across different systems
-- Comprehensive error handling
-- Consistent code style and documentation
-- Thorough testing of new features
+## 🔧 Configuration Options
 
-## License
+### Command Line Arguments
+```bash
+-h, --help              Show comprehensive help message
+-t, --timeout SEC       Set SSH connection timeout (default: 10)
+--version              Display detailed version information
+```
 
-This project is open source. Use and modify freely while maintaining attribution.
+### Debug Environment Variables
+The script respects standard SSH environment variables and creates its own debug configuration.
 
-## Support
+## 🐛 Troubleshooting
 
-For issues, feature requests, or contributions:
-- Check the troubleshooting section above
-- Review configuration file formats
-- Test with debug mode enabled
-- Verify dependencies are installed correctly
+### Common Issues and Solutions
+
+1. **SSH Connection Failures**
+   - Enable `--verbose-ssh` for detailed connection debugging
+   - Check the Connection Analysis in Logging menu
+   - Verify SSH key permissions and paths
+
+2. **Transfer Errors**
+   - Use `--verbose-scp` for detailed transfer debugging
+   - Check Transfer Analysis for patterns
+   - Verify file permissions and disk space
+
+3. **Permission Issues**
+   - Review Error Analysis in Logging menu
+   - Check file/directory permissions
+   - Verify SSH key ownership and permissions
+
+4. **Debug Log Issues**
+   - Check `~/.scp_manager/debug.log` permissions
+   - Use Clear Debug Log option if file becomes too large
+   - Export analysis before clearing for record keeping
+
+## 🔄 Version History
+
+### Version 3.0.0 (Current)
+- **🆕 Comprehensive Logging System** - 11 advanced analysis options
+- **🆕 Intelligent Color-Coded Messages** - Context-aware color coding
+- **🆕 Real-Time Status Indicators** - Visual debug/verbose mode status
+- **🆕 Advanced Transfer Analysis** - Success/failure classification
+- **🆕 Enhanced Command Display** - Tree-like formatting
+- **🆕 Export Functionality** - Detailed analysis reports
+- **🆕 Improved Error Detection** - Advanced classification system
+
+### Version 2.0.0
+- Interactive menu system
+- Saved connection profiles
+- Remote directory browsing
+- Enhanced file transfer capabilities
+- Basic debugging features
+
+### Version 1.0.0
+- Basic SCP transfer functionality
+- Simple command-line interface
+- SSH key support
+
+## 📞 Support
+
+For support and questions:
+- Check the built-in help system (Option 13)
+- Review the comprehensive logging system (Option 12)
+- Use debug modes for detailed troubleshooting
+- Export analysis reports for detailed diagnostics
 
 
 ------------------------------------------------------------------------------------
