@@ -125,7 +125,12 @@ print_progress() {
 }
 
 debug_log() {
-    [[ "$DEBUG" == true ]] && print_status "DEBUG" "$1"
+    if [[ "$DEBUG" == true ]]; then
+        echo "🐛 DEBUG: $1" >&2
+        if [[ -n "$DEBUG_FILE" ]]; then
+            echo "[$(date '+%H:%M:%S')] DEBUG: $1" >> "$DEBUG_FILE"
+        fi
+    fi
 }
 
 verbose_log() {
@@ -137,7 +142,7 @@ debug_function_entry() {
     local params="$2"
     if [[ "$DEBUG_FUNCTIONS" == true ]]; then
         local timestamp=$(date '+%H:%M:%S.%3N')
-        print_color "PURPLE" "🔵 [$timestamp] ENTER: $func_name($params)"
+        print_color "PURPLE" "🔵 [$timestamp] ENTER: $func_name($params)" >&2
     fi
     # Always log to file if debug is enabled
     if [[ "$DEBUG" == true ]] && [[ -n "$DEBUG_FILE" ]]; then
@@ -151,7 +156,7 @@ debug_function_exit() {
     local result="$2"
     if [[ "$DEBUG_FUNCTIONS" == true ]]; then
         local timestamp=$(date '+%H:%M:%S.%3N')
-        print_color "PURPLE" "🔴 [$timestamp] EXIT:  $func_name -> $result"
+        print_color "PURPLE" "🔴 [$timestamp] EXIT:  $func_name -> $result" >&2
     fi
     # Always log to file if debug is enabled
     if [[ "$DEBUG" == true ]] && [[ -n "$DEBUG_FILE" ]]; then
@@ -164,7 +169,7 @@ debug_variable() {
     local var_name="$1"
     local var_value="$2"
     if [[ "$DEBUG_VARIABLES" == true ]]; then
-        print_color "BOLD_PURPLE" "🔍 VAR: $var_name = '$var_value'"
+        print_color "BOLD_PURPLE" "🔍 VAR: $var_name = '$var_value'" >&2
     fi
     # Always log to file if debug is enabled
     if [[ "$DEBUG" == true ]] && [[ -n "$DEBUG_FILE" ]]; then
@@ -178,11 +183,11 @@ debug_command() {
     if [[ "$DEBUG_COMMANDS" == true ]]; then
         # Color-code based on command or context
         if [[ "$command" =~ error|Error|ERROR|failed|Failed|FAILED ]] || [[ "$context" =~ error|Error|ERROR|failed|Failed|FAILED ]]; then
-            print_color "RED" "🛠️  CMD: $command ${context:+($context)}"
+            print_color "RED" "🛠️  CMD: $command ${context:+($context)}" >&2
         elif [[ "$command" =~ warning|Warning|WARNING ]] || [[ "$context" =~ warning|Warning|WARNING ]]; then
-            print_color "YELLOW" "🛠️  CMD: $command ${context:+($context)}"
+            print_color "YELLOW" "🛠️  CMD: $command ${context:+($context)}" >&2
         else
-            print_color "YELLOW" "🛠️  CMD: $command ${context:+($context)}"
+            print_color "YELLOW" "🛠️  CMD: $command ${context:+($context)}" >&2
         fi
     fi
     # Always log to file if debug is enabled
@@ -196,11 +201,11 @@ verbose_ssh() {
     if [[ "$VERBOSE_SSH" == true ]]; then
         # Color-code based on message content
         if [[ "$message" =~ error|Error|ERROR|failed|Failed|FAILED|denied|Denied ]]; then
-            print_color "RED" "🔐 SSH: $message"
+            print_color "RED" "🔐 SSH: $message" >&2
         elif [[ "$message" =~ warning|Warning|WARNING|timeout|Timeout ]]; then
-            print_color "YELLOW" "🔐 SSH: $message"
+            print_color "YELLOW" "🔐 SSH: $message" >&2
         else
-            print_color "CYAN" "🔐 SSH: $message"
+            print_color "CYAN" "🔐 SSH: $message" >&2
         fi
     fi
     # Always log to file if debug is enabled
@@ -214,11 +219,11 @@ verbose_scp() {
     if [[ "$VERBOSE_SCP" == true ]]; then
         # Color-code based on message content
         if [[ "$message" =~ error|Error|ERROR|failed|Failed|FAILED ]]; then
-            print_color "RED" "📁 SCP: $message"
+            print_color "RED" "📁 SCP: $message" >&2
         elif [[ "$message" =~ warning|Warning|WARNING|partial|Partial ]]; then
-            print_color "YELLOW" "📁 SCP: $message"
+            print_color "YELLOW" "📁 SCP: $message" >&2
         else
-            print_color "GREEN" "📁 SCP: $message"
+            print_color "GREEN" "📁 SCP: $message" >&2
         fi
     fi
     # Always log to file if debug is enabled
@@ -233,10 +238,16 @@ debug_json() {
     local content="$3"
     if [[ "$VERBOSE_JSON" == true ]]; then
         print_color "YELLOW" "📄 JSON: $operation on $file"
+        if [[ -n "$content" ]]; then
+            print_color "GRAY" "   Content: $content"
+        fi
     fi
     # Always log to file if debug is enabled
     if [[ "$DEBUG" == true ]] && [[ -n "$DEBUG_FILE" ]]; then
         echo "[$(date '+%H:%M:%S')] JSON: $operation on $file" >> "$DEBUG_FILE"
+        if [[ -n "$content" ]]; then
+            echo "[$(date '+%H:%M:%S')] JSON Content: $content" >> "$DEBUG_FILE"
+        fi
     fi
 }
 
@@ -562,10 +573,10 @@ test_ssh_connection() {
     debug_variable "key" "$key"
     debug_variable "CONNECTION_TIMEOUT" "$CONNECTION_TIMEOUT"
     
-    local ssh_opts="-o ConnectTimeout=$CONNECTION_TIMEOUT -o BatchMode=yes -o StrictHostKeyChecking=no"
+    local ssh_opts="-o ConnectTimeout=$CONNECTION_TIMEOUT -o StrictHostKeyChecking=no"
     
     if [[ -n "$key" ]]; then
-        ssh_opts="$ssh_opts -i $key"
+        ssh_opts="$ssh_opts -i $key -o BatchMode=yes"
         debug_file_operation "SSH key check" "$key" "$(test -f "$key" && echo "exists" || echo "not found")"
         verbose_ssh "Using SSH key authentication: $key"
         
@@ -582,6 +593,9 @@ test_ssh_connection() {
             verbose_ssh "Warning: SSH key permissions are $key_perms, should be 600 or 400"
         fi
     else
+        # For connections without explicit key, try default key with BatchMode
+        # If default key fails, the calling function should try password auth
+        ssh_opts="$ssh_opts -o BatchMode=yes"
         verbose_ssh "Using SSH key-based authentication (default key)"
     fi
     
@@ -797,44 +811,68 @@ setup_ssh_connection() {
     
     # Get connection name
     echo
-    echo -n "❯ Connection name (for easy identification): "
+    echo -n "❯ Connection name (for easy identification) or 'c' to cancel: "
     read CONNECTION_NAME
+    if [[ "$CONNECTION_NAME" == "c" ]] || [[ "$CONNECTION_NAME" == "C" ]]; then
+        print_status "INFO" "Connection setup cancelled"
+        return 1
+    fi
     
     # Get remote host
-    echo -n "❯ Remote hostname or IP address: "
+    echo -n "❯ Remote hostname or IP address or 'c' to cancel: "
     read REMOTE_HOST
+    if [[ "$REMOTE_HOST" == "c" ]] || [[ "$REMOTE_HOST" == "C" ]]; then
+        print_status "INFO" "Connection setup cancelled"
+        return 1
+    fi
     
     # Get remote user
-    echo -n "❯ Remote username [default: ubuntu]: "
+    echo -n "❯ Remote username [default: ubuntu] or 'c' to cancel: "
     read REMOTE_USER
+    if [[ "$REMOTE_USER" == "c" ]] || [[ "$REMOTE_USER" == "C" ]]; then
+        print_status "INFO" "Connection setup cancelled"
+        return 1
+    fi
     REMOTE_USER="${REMOTE_USER:-ubuntu}"
     
     # Get remote port
-    echo -n "❯ SSH port [default: 22]: "
+    echo -n "❯ SSH port [default: 22] or 'c' to cancel: "
     read REMOTE_PORT
+    if [[ "$REMOTE_PORT" == "c" ]] || [[ "$REMOTE_PORT" == "C" ]]; then
+        print_status "INFO" "Connection setup cancelled"
+        return 1
+    fi
     REMOTE_PORT="${REMOTE_PORT:-22}"
     
     # Get default remote path
-    echo -n "❯ Default remote path [default: ~]: "
+    echo -n "❯ Default remote path [default: ~] or 'c' to cancel: "
     read REMOTE_PATH
+    if [[ "$REMOTE_PATH" == "c" ]] || [[ "$REMOTE_PATH" == "C" ]]; then
+        print_status "INFO" "Connection setup cancelled"
+        return 1
+    fi
     REMOTE_PATH="${REMOTE_PATH:-~}"
     
     print_color "BOLD_YELLOW" "\nAuthentication method:"
     print_menu_option "1" "SSH Key" "Use SSH private key file"
     print_menu_option "2" "Password" "Use password authentication"
     print_menu_option "3" "Default SSH Key" "Use ~/.ssh/id_rsa"
+    print_menu_option "4" "Cancel" "Cancel connection setup and return to main menu"
     
     echo
     local auth_choice
     
     # Direct prompt without command substitution
     while true; do
-        echo -n "❯ Select option (1-3): "
+        echo -n "❯ Select option (1-4): "
         read auth_choice
-        if [[ "$auth_choice" =~ ^[0-9]+$ ]] && [[ "$auth_choice" -ge 1 ]] && [[ "$auth_choice" -le 3 ]]; then
+        if [[ "$auth_choice" == "4" ]]; then
+            print_status "INFO" "Connection setup cancelled"
+            return 1
+        elif [[ "$auth_choice" =~ ^[0-9]+$ ]] && [[ "$auth_choice" -ge 1 ]] && [[ "$auth_choice" -le 3 ]]; then
             break
         else
-            echo "❌ Invalid choice. Please enter a number between 1 and 3"
+            echo "❌ Invalid choice. Please enter a number between 1 and 4"
         fi
     done
     
@@ -843,8 +881,12 @@ setup_ssh_connection() {
     
     case "$auth_choice" in
         1)
-            echo -n "❯ Path to SSH private key [default: $HOME/.ssh/id_rsa]: "
+            echo -n "❯ Path to SSH private key [default: $HOME/.ssh/id_rsa] or 'c' to cancel: "
             read SSH_KEY
+            if [[ "$SSH_KEY" == "c" ]] || [[ "$SSH_KEY" == "C" ]]; then
+                print_status "INFO" "Connection setup cancelled"
+                return 1
+            fi
             SSH_KEY="${SSH_KEY:-$HOME/.ssh/id_rsa}"
             if [[ ! -f "$SSH_KEY" ]]; then
                 print_status "ERROR" "SSH key file not found: $SSH_KEY"
@@ -854,11 +896,11 @@ setup_ssh_connection() {
         2)
             SSH_KEY=""
             use_password=true
-            echo -n "❯ Enter password for $REMOTE_USER@$REMOTE_HOST: "
+            echo "❯ Enter password for $REMOTE_USER@$REMOTE_HOST (or press Enter to cancel): "
             read -s password
             echo  # Add newline after hidden password input
             if [[ -z "$password" ]]; then
-                print_status "ERROR" "Password cannot be empty"
+                print_status "INFO" "Connection setup cancelled"
                 return 1
             fi
             ;;
@@ -868,11 +910,11 @@ setup_ssh_connection() {
                 print_status "WARNING" "Default SSH key not found, will use password authentication"
                 SSH_KEY=""
                 use_password=true
-                echo -n "❯ Enter password for $REMOTE_USER@$REMOTE_HOST: "
+                echo "❯ Enter password for $REMOTE_USER@$REMOTE_HOST (or press Enter to cancel): "
                 read -s password
                 echo  # Add newline after hidden password input
                 if [[ -z "$password" ]]; then
-                    print_status "ERROR" "Password cannot be empty"
+                    print_status "INFO" "Connection setup cancelled"
                     return 1
                 fi
             fi
@@ -987,20 +1029,23 @@ load_saved_connections() {
     
     echo
     echo "[n] New Connection - Setup a new SSH connection"
+    echo "[c] Cancel - Return to main menu"
     
     echo
     local choice
     
     # Direct prompt without command substitution
     while true; do
-        echo -n "❯ Select connection (1-$connections_count) or 'n' for new connection: "
+        echo -n "❯ Select connection (1-$connections_count), 'n' for new, or 'c' to cancel: "
         read choice
         if [[ "$choice" == "n" ]] || [[ "$choice" == "N" ]]; then
             return 1  # New connection
+        elif [[ "$choice" == "c" ]] || [[ "$choice" == "C" ]]; then
+            return 2  # Cancel - return to main menu
         elif [[ "$choice" =~ ^[0-9]+$ ]] && [[ "$choice" -ge 1 ]] && [[ "$choice" -le "$connections_count" ]]; then
             break
         else
-            echo "❌ Invalid choice. Please enter a number between 1 and $connections_count, or 'n' for new connection"
+            echo "❌ Invalid choice. Please enter a number between 1 and $connections_count, 'n' for new connection, or 'c' to cancel"
         fi
     done
     
@@ -1090,9 +1135,14 @@ select_saved_connection() {
         if [[ -z "$SSH_KEY" ]]; then
             # Password authentication - prompt for password
             echo
-            echo -n "❯ Enter password for $REMOTE_USER@$REMOTE_HOST: "
+            echo "❯ Enter password for $REMOTE_USER@$REMOTE_HOST (or press Enter to cancel): "
             read -s password
             echo  # Add newline after hidden password input
+            
+            if [[ -z "$password" ]]; then
+                print_status "INFO" "Connection cancelled"
+                return 1
+            fi
             
             if [[ -n "$password" ]]; then
                 if test_ssh_connection_with_password "$REMOTE_HOST" "$REMOTE_USER" "$REMOTE_PORT" "$password"; then
@@ -1126,17 +1176,25 @@ select_saved_connection() {
             return 0
         else
             print_status "ERROR" "Connection test failed - please check connection details"
-            echo -n "❯ Continue anyway? (y/N) [default: n]: "
+            echo -n "❯ Continue anyway? (y/N) [default: n] or 'x' to exit: "
             read continue_anyway
+            if [[ "$continue_anyway" == "x" ]] || [[ "$continue_anyway" == "X" ]]; then
+                print_status "INFO" "Connection cancelled"
+                return 1
+            fi
             continue_anyway="${continue_anyway:-n}"
             if [[ "$continue_anyway" =~ ^[Yy] ]]; then
                 print_status "WARNING" "Proceeding with untested connection"
                 # For password auth, still prompt for password if continuing
                 if [[ -z "$SSH_KEY" ]] && [[ -z "$REMOTE_PASSWORD" ]]; then
                     echo
-                    echo -n "❯ Enter password for connection (needed for operations): "
+                    echo "❯ Enter password for connection (needed for operations) or press Enter to cancel: "
                     read -s password
                     echo
+                    if [[ -z "$password" ]]; then
+                        print_status "INFO" "Connection cancelled"
+                        return 1
+                    fi
                     REMOTE_PASSWORD="$password"
                 fi
                 return 0
@@ -1178,39 +1236,28 @@ add_saved_path() {
 get_saved_paths() {
     local path_type="$1"  # "upload" or "download"
     
-    if [[ "$DEBUG" == true ]]; then
-        debug_log "get_saved_paths called for: $path_type"
-    fi
+    debug_log "get_saved_paths called for: $path_type"
     
     initialize_connections_dir
     
     if [[ ! -f "$SAVED_PATHS_FILE" ]]; then
-        if [[ "$DEBUG" == true ]]; then
-            debug_log "No saved paths file found: $SAVED_PATHS_FILE"
-        fi
+        debug_log "No saved paths file found: $SAVED_PATHS_FILE"
         return
     fi
     
     if [[ ! -s "$SAVED_PATHS_FILE" ]]; then
-        if [[ "$DEBUG" == true ]]; then
-            debug_log "Saved paths file is empty: $SAVED_PATHS_FILE"
-        fi
+        debug_log "Saved paths file is empty: $SAVED_PATHS_FILE"
         return
     fi
     
     local path_array="${path_type}_paths"
-    if [[ "$DEBUG" == true ]]; then
-        debug_log "Looking for paths in array: $path_array"
-        debug_log "Saved paths file content: $(cat "$SAVED_PATHS_FILE" 2>/dev/null)"
-    fi
+    debug_log "Looking for paths in array: $path_array"
     
-    # Use a more robust approach to get paths
+    # Use a more robust approach to get paths and remove duplicates
     local result
-    result=$(timeout 5 jq -r ".${path_array}[]?" "$SAVED_PATHS_FILE" 2>/dev/null || echo "")
+    result=$(timeout 5 jq -r ".${path_array}[]?" "$SAVED_PATHS_FILE" 2>/dev/null | sort -u || echo "")
     
-    if [[ "$DEBUG" == true ]]; then
-        debug_log "get_saved_paths result for $path_type: '$result'"
-    fi
+    debug_log "get_saved_paths result for $path_type: '$result'"
     
     if [[ -n "$result" ]]; then
         echo "$result"
@@ -1267,22 +1314,25 @@ select_saved_path() {
     echo
     echo "[n] Enter new path manually"
     echo "[c] Cancel - use default"
+    echo "[x] Exit - return to previous menu"
     
     echo
     local choice
     
     while true; do
-        echo -n "❯ Select path (1-${#saved_paths[@]}) or 'n'/'c': "
+        echo -n "❯ Select path (1-${#saved_paths[@]}) or 'n'/'c'/'x': "
         read choice
         if [[ "$choice" == "c" ]] || [[ "$choice" == "C" ]]; then
             return 1
+        elif [[ "$choice" == "x" ]] || [[ "$choice" == "X" ]]; then
+            return 3  # Exit to previous menu
         elif [[ "$choice" == "n" ]] || [[ "$choice" == "N" ]]; then
             return 2  # Manual entry
         elif [[ "$choice" =~ ^[0-9]+$ ]] && [[ "$choice" -ge 1 ]] && [[ "$choice" -le "${#saved_paths[@]}" ]]; then
             echo "${saved_paths[$((choice-1))]}"
             return 0
         else
-            echo "❌ Invalid choice. Please enter a number between 1 and ${#saved_paths[@]}, 'n' for new, or 'c' to cancel"
+            echo "❌ Invalid choice. Please enter a number between 1 and ${#saved_paths[@]}, 'n' for new, 'c' to cancel, or 'x' to exit"
         fi
     done
 }
@@ -1292,28 +1342,47 @@ execute_remote_command() {
     local command="$1"
     local ssh_opts="-o ConnectTimeout=$CONNECTION_TIMEOUT -o StrictHostKeyChecking=no"
     
-    if [[ -n "$SSH_KEY" ]]; then
+    # Temporarily disable verbose modes to prevent contamination of command output
+    local temp_verbose_ssh="$VERBOSE_SSH"
+    local temp_debug="$DEBUG"
+    local temp_verbose="$VERBOSE"
+    
+    # Disable verbose modes during command execution
+    VERBOSE_SSH=false
+    
+    # Handle authentication method
+    if [[ -n "$SSH_KEY" && -f "$SSH_KEY" ]]; then
+        # Use SSH key authentication
         ssh_opts="$ssh_opts -i $SSH_KEY"
+    elif [[ -n "$REMOTE_PASSWORD" ]]; then
+        # Use password authentication with sshpass - no debug output during execution
+        true  # Just continue, sshpass will be used below
     fi
     
-    # Add verbose flag if DEBUG or VERBOSE is enabled
-    if [[ "$VERBOSE" == true ]] || [[ "$DEBUG" == true ]]; then
-        ssh_opts="$ssh_opts -v"
-    fi
+    # Only add SSH verbose flag if explicitly requested (not for our debug modes)
+    # This prevents SSH debug output from contaminating command results
     
-    # Debug logging to stderr to avoid interfering with command output
-    if [[ "$DEBUG" == true ]]; then
-        echo "🐛 DEBUG: SSH command: ssh $ssh_opts -p $REMOTE_PORT $REMOTE_USER@$REMOTE_HOST '$command'" >&2
-    fi
-    
-    # Execute with appropriate error handling based on debug/verbose mode
-    if [[ "$DEBUG" == true ]] || [[ "$VERBOSE" == true ]]; then
-        # Show all output including errors when debugging/verbose
-        ssh $ssh_opts -p "$REMOTE_PORT" "$REMOTE_USER@$REMOTE_HOST" "$command"
+    # Execute based on authentication method
+    if [[ -n "$SSH_KEY" && -f "$SSH_KEY" ]]; then
+        # SSH key authentication - always suppress stderr during command execution
+        ssh $ssh_opts -p "$REMOTE_PORT" "$REMOTE_USER@$REMOTE_HOST" "$command" 2>/dev/null
+    elif [[ -n "$REMOTE_PASSWORD" ]]; then
+        # Password authentication - always suppress stderr during command execution
+        if command -v sshpass >/dev/null 2>&1; then
+            sshpass -p "$REMOTE_PASSWORD" ssh $ssh_opts -p "$REMOTE_PORT" "$REMOTE_USER@$REMOTE_HOST" "$command" 2>/dev/null
+        else
+            # Fallback without sshpass
+            ssh $ssh_opts -p "$REMOTE_PORT" "$REMOTE_USER@$REMOTE_HOST" "$command" 2>/dev/null
+        fi
     else
-        # Suppress error output in normal mode
+        # Fallback to default SSH behavior - always suppress stderr
         ssh $ssh_opts -p "$REMOTE_PORT" "$REMOTE_USER@$REMOTE_HOST" "$command" 2>/dev/null
     fi
+    
+    # Restore verbose modes
+    VERBOSE_SSH="$temp_verbose_ssh"
+    DEBUG="$temp_debug"
+    VERBOSE="$temp_verbose"
 }
 
 list_remote_directory() {
@@ -1867,9 +1936,19 @@ build_scp_command() {
     
     local scp_command
     if [[ "$operation" == "upload" ]]; then
-        scp_command="scp $scp_opts '$source' '$REMOTE_USER@$REMOTE_HOST:$destination'"
+        # Remove quotes from wildcard paths to allow shell expansion
+        if [[ "$source" == *"*" ]]; then
+            scp_command="scp $scp_opts $source '$REMOTE_USER@$REMOTE_HOST:$destination'"
+        else
+            scp_command="scp $scp_opts '$source' '$REMOTE_USER@$REMOTE_HOST:$destination'"
+        fi
     else
-        scp_command="scp $scp_opts '$REMOTE_USER@$REMOTE_HOST:$source' '$destination'"
+        # Remove quotes from wildcard paths to allow shell expansion
+        if [[ "$source" == *"*" ]]; then
+            scp_command="scp $scp_opts '$REMOTE_USER@$REMOTE_HOST:$source' '$destination'"
+        else
+            scp_command="scp $scp_opts '$REMOTE_USER@$REMOTE_HOST:$source' '$destination'"
+        fi
     fi
     
     echo "$scp_command"
@@ -1949,22 +2028,41 @@ upload_files() {
     
     if [[ -n "$saved_paths_output" ]]; then
         # There are saved paths - show the selection menu
-        if [[ "$DEBUG" == true ]]; then
-            debug_log "Found saved upload paths, showing menu"
-        fi
+        debug_log "Found saved upload paths, showing menu"
         
-        print_section_header "Select Saved Path for Upload"
-        echo "Saved upload paths:"
+        print_section_header "Upload Source Selection"
+        echo
+        print_color "BOLD_CYAN" "📤 Select files/folders to upload:"
+        echo
+        print_color "GREEN" "📁 Saved Upload Locations:"
         
         local paths_array=()
         while IFS= read -r line; do
-            if [[ -n "$line" ]]; then
+            # Clean up the line and only add valid paths
+            line=$(echo "$line" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            if [[ -n "$line" && "$line" =~ ^/ ]]; then
+                # Only add lines that look like actual paths (start with /)
                 paths_array+=("$line")
             fi
         done <<< "$saved_paths_output"
         
-        local counter=1
+        # Remove duplicates from the array
+        local unique_paths=()
         for path in "${paths_array[@]}"; do
+            local is_duplicate=false
+            for existing in "${unique_paths[@]}"; do
+                if [[ "$path" == "$existing" ]]; then
+                    is_duplicate=true
+                    break
+                fi
+            done
+            if [[ "$is_duplicate" == false ]]; then
+                unique_paths+=("$path")
+            fi
+        done
+        
+        local counter=1
+        for path in "${unique_paths[@]}"; do
             print_menu_option "$counter" "$(basename "$path")" "$path"
             ((counter++))
         done
@@ -1972,22 +2070,25 @@ upload_files() {
         echo
         echo "[n] Enter new path manually"
         echo "[c] Cancel - use default"
+        echo "[x] Exit - return to main menu"
         
         echo
         local choice
         while true; do
-            echo -n "❯ Select path (1-${#paths_array[@]}) or 'n'/'c': "
+            echo -n "❯ Select path (1-${#unique_paths[@]}) or 'n'/'c'/'x': "
             read choice
             if [[ "$choice" == "c" ]] || [[ "$choice" == "C" ]]; then
                 break  # Use default handling below
+            elif [[ "$choice" == "x" ]] || [[ "$choice" == "X" ]]; then
+                return  # Exit to main menu
             elif [[ "$choice" == "n" ]] || [[ "$choice" == "N" ]]; then
                 break  # Use manual entry below
-            elif [[ "$choice" =~ ^[0-9]+$ ]] && [[ "$choice" -ge 1 ]] && [[ "$choice" -le "${#paths_array[@]}" ]]; then
-                local_source="${paths_array[$((choice-1))]}"
+            elif [[ "$choice" =~ ^[0-9]+$ ]] && [[ "$choice" -ge 1 ]] && [[ "$choice" -le "${#unique_paths[@]}" ]]; then
+                local_source="${unique_paths[$((choice-1))]}"
                 print_status "INFO" "Using saved path: $local_source"
                 break
             else
-                echo "❌ Invalid choice. Please enter a number between 1 and ${#paths_array[@]}, 'n' for new, or 'c' to cancel"
+                echo "❌ Invalid choice. Please enter a number between 1 and ${#unique_paths[@]}, 'n' for new, 'c' to cancel, or 'x' to exit"
             fi
         done
         
@@ -2029,7 +2130,12 @@ upload_files() {
     fi
     
     # Select transfer type
-    if ! select_transfer_type "$local_source" "upload"; then
+    select_transfer_type "$local_source" "upload"
+    local transfer_result=$?
+    if [[ $transfer_result -eq 2 ]]; then
+        # User chose to exit
+        return
+    elif [[ $transfer_result -ne 0 ]]; then
         print_status "ERROR" "Transfer type selection failed"
         return 1
     fi
@@ -2089,14 +2195,22 @@ upload_files() {
     done
     
     # Get remote destination
-    echo -n "❯ Remote destination path [default: ${REMOTE_PATH:-~}]: "
+    echo -n "❯ Remote destination path [default: ${REMOTE_PATH:-~}] or 'x' to exit: "
     read remote_dest
+    if [[ "$remote_dest" == "x" ]] || [[ "$remote_dest" == "X" ]]; then
+        print_status "INFO" "Upload cancelled"
+        return
+    fi
     remote_dest="${remote_dest:-${REMOTE_PATH:-~}}"
     
-    # Check if remote destination already exists
+    # Normalize the remote destination path (remove trailing slash if present)
+    remote_dest="${remote_dest%/}"
+    
+    # Check if remote destination already exists and would cause a conflict
     local filename=$(basename "$local_source")
     local remote_full_path="$remote_dest/$filename"
     
+    # Check if remote destination already exists
     if execute_remote_command "test -e '$remote_full_path'" >/dev/null 2>&1; then
         echo
         print_color "YELLOW" "⚠️  WARNING: Remote destination already exists!"
@@ -2248,7 +2362,12 @@ download_files() {
     done
     
     # Select transfer type for remote source
-    if ! select_transfer_type "$remote_source" "download"; then
+    select_transfer_type "$remote_source" "download"
+    local transfer_result=$?
+    if [[ $transfer_result -eq 2 ]]; then
+        # User chose to exit
+        return
+    elif [[ $transfer_result -ne 0 ]]; then
         print_status "ERROR" "Transfer type selection failed"
         return 1
     fi
@@ -2265,22 +2384,41 @@ download_files() {
     
     if [[ -n "$saved_paths_output" ]]; then
         # There are saved paths - show the selection menu
-        if [[ "$DEBUG" == true ]]; then
-            debug_log "Found saved download paths, showing menu"
-        fi
+        debug_log "Found saved download paths, showing menu"
         
-        print_section_header "Select Saved Path for Download"
-        echo "Saved download paths:"
+        print_section_header "Download Destination Selection"
+        echo
+        print_color "BOLD_CYAN" "🎯 Where do you want to download the files?"
+        echo
+        print_color "GREEN" "📁 Saved Download Locations:"
         
         local paths_array=()
         while IFS= read -r line; do
-            if [[ -n "$line" ]]; then
+            # Clean up the line and only add valid paths
+            line=$(echo "$line" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            if [[ -n "$line" && "$line" =~ ^/ ]]; then
+                # Only add lines that look like actual paths (start with /)
                 paths_array+=("$line")
             fi
         done <<< "$saved_paths_output"
         
-        local counter=1
+        # Remove duplicates from the array
+        local unique_paths=()
         for path in "${paths_array[@]}"; do
+            local is_duplicate=false
+            for existing in "${unique_paths[@]}"; do
+                if [[ "$path" == "$existing" ]]; then
+                    is_duplicate=true
+                    break
+                fi
+            done
+            if [[ "$is_duplicate" == false ]]; then
+                unique_paths+=("$path")
+            fi
+        done
+        
+        local counter=1
+        for path in "${unique_paths[@]}"; do
             print_menu_option "$counter" "$(basename "$path")" "$path"
             ((counter++))
         done
@@ -2288,22 +2426,25 @@ download_files() {
         echo
         echo "[n] Enter new path manually"
         echo "[c] Cancel - use default"
+        echo "[x] Exit - return to main menu"
         
         echo
         local choice
         while true; do
-            echo -n "❯ Select path (1-${#paths_array[@]}) or 'n'/'c': "
+            echo -n "❯ Select path (1-${#unique_paths[@]}) or 'n'/'c'/'x': "
             read choice
             if [[ "$choice" == "c" ]] || [[ "$choice" == "C" ]]; then
                 break  # Use default handling below
+            elif [[ "$choice" == "x" ]] || [[ "$choice" == "X" ]]; then
+                return  # Exit to main menu
             elif [[ "$choice" == "n" ]] || [[ "$choice" == "N" ]]; then
                 break  # Use manual entry below
-            elif [[ "$choice" =~ ^[0-9]+$ ]] && [[ "$choice" -ge 1 ]] && [[ "$choice" -le "${#paths_array[@]}" ]]; then
-                local_dest="${paths_array[$((choice-1))]}"
+            elif [[ "$choice" =~ ^[0-9]+$ ]] && [[ "$choice" -ge 1 ]] && [[ "$choice" -le "${#unique_paths[@]}" ]]; then
+                local_dest="${unique_paths[$((choice-1))]}"
                 print_status "INFO" "Using saved path: $local_dest"
                 break
             else
-                echo "❌ Invalid choice. Please enter a number between 1 and ${#paths_array[@]}, 'n' for new, or 'c' to cancel"
+                echo "❌ Invalid choice. Please enter a number between 1 and ${#unique_paths[@]}, 'n' for new, 'c' to cancel, or 'x' to exit"
             fi
         done
         
@@ -2330,8 +2471,12 @@ download_files() {
     # If no path selected yet, prompt for manual entry
     if [[ -z "$local_dest" ]]; then
         print_section_header "Enter Download Destination Path"
-        echo -n "❯ Local destination path [default: $PWD]: "
+        echo -n "❯ Local destination path [default: $PWD] or 'x' to exit: "
         read local_dest
+        if [[ "$local_dest" == "x" ]] || [[ "$local_dest" == "X" ]]; then
+            print_status "INFO" "Download cancelled"
+            return
+        fi
         local_dest="${local_dest:-$PWD}"
         
         # Ask if user wants to save this path
@@ -2351,6 +2496,9 @@ download_files() {
             return 1
         }
     fi
+    
+    # Normalize the local destination path (remove trailing slash if present)
+    local_dest="${local_dest%/}"
     
     # Check for existing files/directories that might conflict
     local filename=$(basename "$remote_source")
@@ -2739,9 +2887,14 @@ settings_menu() {
                         fi
                     else
                         # Prompt for password
-                        echo -n "❯ Enter password for $REMOTE_USER@$REMOTE_HOST: "
+                        echo "❯ Enter password for $REMOTE_USER@$REMOTE_HOST (or press Enter to cancel): "
                         read -s password
                         echo  # Add newline after hidden password input
+                        
+                        if [[ -z "$password" ]]; then
+                            print_status "INFO" "Browse files cancelled"
+                            return 1
+                        fi
                         
                         if [[ -n "$password" ]]; then
                             print_progress "Testing with entered password..."
@@ -3527,7 +3680,7 @@ main_menu() {
         print_menu_option "7" "Manage Transfers" "Create, edit, and manage saved transfer configurations"
         print_menu_option "8" "Folder Navigator" "Interactive local folder navigation with multiple views"
         print_menu_option "9" "Remote Navigator" "Interactive remote folder navigation with multiple views"
-        print_menu_option "10" "Quick Transfer" "Fast file transfer with current settings"
+        print_menu_option "10" "Manual Transfer" "User must provide all fields to transfer data"
         print_menu_option "11" "Settings" "Configure application settings"
         print_menu_option "12" "Logging" "View, search, and analyze debug logs"
         print_menu_option "13" "Help" "Show help and usage information"
@@ -3550,10 +3703,19 @@ main_menu() {
         
         case "$choice" in
             1)
-                if ! load_saved_connections; then
+                load_saved_connections
+                local connection_result=$?
+                if [[ $connection_result -eq 1 ]]; then
+                    # User chose new connection
                     setup_ssh_connection
+                    press_enter_to_continue
+                elif [[ $connection_result -eq 2 ]]; then
+                    # User chose cancel - continue to main menu
+                    continue
+                else
+                    # Connection was selected successfully
+                    press_enter_to_continue
                 fi
-                press_enter_to_continue
                 ;;
             2)
                 manage_connections_menu
@@ -3683,6 +3845,15 @@ create_new_transfer() {
     print_header
     print_section_header "Create New Transfer"
     
+    # Display creation guidance
+    echo
+    print_color "BOLD_CYAN" "🆕 Transfer Creation Guide:"
+    print_color "GREEN" "🔹 This wizard will guide you through creating a new transfer"
+    print_color "GREEN" "🔹 You'll see detailed path examples for each step"
+    print_color "GREEN" "🔹 All wildcard patterns will be handled automatically"
+    print_color "YELLOW" "💡 You can edit any settings later using 'Edit Transfer'"
+    echo
+    
     initialize_transfers_dir
     
     local transfer_name=""
@@ -3696,24 +3867,36 @@ create_new_transfer() {
     local operation=""
     
     # Get transfer name
-    echo -n "❯ Transfer name: "
+    echo -n "❯ Transfer name or 'c' to cancel: "
     read transfer_name
+    if [[ "$transfer_name" == "c" ]] || [[ "$transfer_name" == "C" ]]; then
+        print_status "INFO" "Transfer creation cancelled"
+        return 1
+    fi
     if [[ -z "$transfer_name" ]]; then
         print_status "ERROR" "Transfer name cannot be empty"
         return 1
     fi
     
     # Get remote host
-    echo -n "❯ Remote host (FQDN/IP): "
+    echo -n "❯ Remote host (FQDN/IP) or 'c' to cancel: "
     read remote_host
+    if [[ "$remote_host" == "c" ]] || [[ "$remote_host" == "C" ]]; then
+        print_status "INFO" "Transfer creation cancelled"
+        return 1
+    fi
     if [[ -z "$remote_host" ]]; then
         print_status "ERROR" "Remote host cannot be empty"
         return 1
     fi
     
     # Get remote user
-    echo -n "❯ Remote user: "
+    echo -n "❯ Remote user or 'c' to cancel: "
     read remote_user
+    if [[ "$remote_user" == "c" ]] || [[ "$remote_user" == "C" ]]; then
+        print_status "INFO" "Transfer creation cancelled"
+        return 1
+    fi
     if [[ -z "$remote_user" ]]; then
         print_status "ERROR" "Remote user cannot be empty"
         return 1
@@ -3724,20 +3907,29 @@ create_new_transfer() {
     print_section_header "Authentication Method"
     print_menu_option "1" "SSH Key" "Use SSH private key for authentication"
     print_menu_option "2" "Password" "Use password for authentication"
+    print_menu_option "x" "Exit" "Cancel transfer creation and return to parent menu"
     
     echo
     while true; do
-        echo -n "❯ Choose authentication method (1-2): "
+        echo -n "❯ Choose authentication method (1-2) or 'x' to exit: "
         read auth_choice
         case "$auth_choice" in
             1)
                 auth_method="ssh_key"
-                echo -n "❯ SSH key path: "
+                echo -n "❯ SSH key path or 'c' to cancel: "
                 read ssh_key
+                if [[ "$ssh_key" == "c" ]] || [[ "$ssh_key" == "C" ]]; then
+                    print_status "INFO" "Transfer creation cancelled"
+                    return 1
+                fi
                 if [[ -n "$ssh_key" ]] && [[ ! -f "$ssh_key" ]]; then
                     print_status "WARNING" "SSH key file does not exist: $ssh_key"
-                    echo -n "❯ Continue anyway? (y/N): "
+                    echo -n "❯ Continue anyway? (y/N) or 'x' to exit: "
                     read continue_choice
+                    if [[ "$continue_choice" == "x" ]] || [[ "$continue_choice" == "X" ]]; then
+                        print_status "INFO" "Transfer creation cancelled"
+                        return 1
+                    fi
                     if [[ ! "$continue_choice" =~ ^[Yy] ]]; then
                         return 1
                     fi
@@ -3746,13 +3938,21 @@ create_new_transfer() {
                 ;;
             2)
                 auth_method="password"
-                echo -n "❯ Password: "
+                echo "❯ Password (or press Enter to cancel): "
                 read -s password
                 echo
+                if [[ -z "$password" ]]; then
+                    print_status "INFO" "Transfer creation cancelled"
+                    return 1
+                fi
                 break
                 ;;
+            [xX])
+                print_status "INFO" "Transfer creation cancelled"
+                return 1
+                ;;
             *)
-                echo "❌ Invalid choice. Please enter 1 or 2"
+                echo "❌ Invalid choice. Please enter 1, 2, or 'x' to exit"
                 ;;
         esac
     done
@@ -3776,8 +3976,12 @@ create_new_transfer() {
         print_status "SUCCESS" "Connection test successful"
     else
         print_status "ERROR" "Connection test failed"
-        echo -n "❯ Continue anyway? (y/N): "
+        echo -n "❯ Continue anyway? (y/N) or 'x' to exit: "
         read continue_choice
+        if [[ "$continue_choice" == "x" ]] || [[ "$continue_choice" == "X" ]]; then
+            print_status "INFO" "Transfer creation cancelled"
+            return 1
+        fi
         if [[ ! "$continue_choice" =~ ^[Yy] ]]; then
             return 1
         fi
@@ -3785,16 +3989,67 @@ create_new_transfer() {
     
     # Get source path
     echo
-    echo -n "❯ Source path (file or directory): "
+    print_section_header "Path Syntax Guide"
+    print_color "BOLD_CYAN" "📁 Transfer Types & Path Examples:"
+    echo
+    print_color "GREEN" "🔹 Single File:"
+    print_color "WHITE" "   Source Example: /home/user/report.pdf | Destination Example: /remote/documents/"
+    echo
+    print_color "GREEN" "🔹 Multiple Specific Files:"
+    print_color "WHITE" "   Source Example: /home/user/file1.txt (create separate transfers for each)"
+    print_color "WHITE" "   Destination Example: /remote/files/"
+    echo
+    print_color "GREEN" "🔹 Complete Folder (including folder itself):"
+    print_color "WHITE" "   Source Example: /home/user/project | Destination Example: /remote/backups/"
+    echo
+    print_color "GREEN" "🔹 Folder Contents Only (not the folder):"
+    print_color "WHITE" "   Source Example: /home/user/project/* | Destination Example: /remote/project_files/"
+    echo
+    print_color "GREEN" "🔹 Pattern Matching:"
+    print_color "WHITE" "   Source Example: /home/user/logs/*.log | Destination Example: /remote/logs/"
+    print_color "WHITE" "   Source Example: /home/user/data*.csv | Destination Example: /remote/datasets/"
+    echo
+    print_color "BOLD_YELLOW" "💡 Important Notes:"
+    print_color "YELLOW" "   • For Downloads: Use wildcards (*) in SOURCE paths (remote)"
+    print_color "YELLOW" "   • For Uploads: Use wildcards (*) in SOURCE paths (local)"
+    print_color "YELLOW" "   • Destination should typically be a directory path"
+    print_color "YELLOW" "   • Use trailing / for directories: /path/to/destination/"
+    echo
+    echo -n "❯ Source path or 'c' to cancel: "
     read source_path
+    if [[ "$source_path" == "c" ]] || [[ "$source_path" == "C" ]]; then
+        print_status "INFO" "Transfer creation cancelled"
+        return 1
+    fi
     if [[ -z "$source_path" ]]; then
         print_status "ERROR" "Source path cannot be empty"
         return 1
     fi
     
     # Get destination path
-    echo -n "❯ Destination path: "
+    echo
+    print_color "BOLD_CYAN" "🎯 Destination Path Examples:"
+    print_color "GREEN" "🔹 To Directory:"
+    print_color "WHITE" "   Example: /home/user/downloads/ | Remote Example: /var/backup/files/"
+    echo
+    print_color "GREEN" "🔹 Rename Single File:"
+    print_color "WHITE" "   Example: /home/user/renamed_file.txt | Remote Example: /remote/new_name.pdf"
+    echo
+    print_color "GREEN" "🔹 Specific Scenarios:"
+    print_color "WHITE" "   Upload to: /remote/projects/ | Download to: /home/user/received/"
+    print_color "WHITE" "   Backup to: /backup/daily/ | Archive to: /storage/archives/"
+    echo
+    print_color "BOLD_YELLOW" "💡 Recommendation:"
+    print_color "YELLOW" "   • Use directory paths for most transfers"
+    print_color "YELLOW" "   • Avoid wildcards (*) in destination paths"
+    print_color "YELLOW" "   • End directory paths with / for clarity"
+    echo
+    echo -n "❯ Destination path or 'c' to cancel: "
     read dest_path
+    if [[ "$dest_path" == "c" ]] || [[ "$dest_path" == "C" ]]; then
+        print_status "INFO" "Transfer creation cancelled"
+        return 1
+    fi
     if [[ -z "$dest_path" ]]; then
         print_status "ERROR" "Destination path cannot be empty"
         return 1
@@ -3839,8 +4094,12 @@ create_new_transfer() {
         print_status "SUCCESS" "Source path validated ($source_type)"
     else
         print_status "ERROR" "Source path validation failed"
-        echo -n "❯ Continue anyway? (y/N): "
+        echo -n "❯ Continue anyway? (y/N) or 'x' to exit: "
         read continue_choice
+        if [[ "$continue_choice" == "x" ]] || [[ "$continue_choice" == "X" ]]; then
+            print_status "INFO" "Transfer creation cancelled"
+            return 1
+        fi
         if [[ ! "$continue_choice" =~ ^[Yy] ]]; then
             return 1
         fi
@@ -3852,8 +4111,12 @@ create_new_transfer() {
         print_status "SUCCESS" "Destination path validated"
     else
         print_status "ERROR" "Destination path validation failed"
-        echo -n "❯ Continue anyway? (y/N): "
+        echo -n "❯ Continue anyway? (y/N) or 'x' to exit: "
         read continue_choice
+        if [[ "$continue_choice" == "x" ]] || [[ "$continue_choice" == "X" ]]; then
+            print_status "INFO" "Transfer creation cancelled"
+            return 1
+        fi
         if [[ ! "$continue_choice" =~ ^[Yy] ]]; then
             return 1
         fi
@@ -3913,6 +4176,7 @@ save_transfer() {
 }
 EOF
 )
+    debug_json "create_transfer" "$transfers_file" "New transfer: $name ($op: $source -> $dest)"
     
     # Add to transfers file
     local updated_transfers
@@ -3924,11 +4188,13 @@ EOF
     
     if [[ -n "$updated_transfers" ]]; then
         echo "$updated_transfers" > "$transfers_file"
+        debug_json "save_transfers" "$transfers_file" "Successfully saved transfer: $name"
         if [[ "$DEBUG" == true ]]; then
             debug_log "Saved transfer: $name"
         fi
     else
         print_status "ERROR" "Failed to save transfer configuration"
+        debug_json "save_transfers" "$transfers_file" "Failed to generate JSON for transfer: $name"
         return 1
     fi
 }
@@ -3936,6 +4202,20 @@ EOF
 list_transfers() {
     print_header
     print_section_header "Saved Transfer Configurations"
+    
+    # Display path syntax guidance
+    echo
+    print_color "BOLD_CYAN" "📖 Path Syntax Reference:"
+    print_color "GREEN" "🔹 Single File: /path/to/file.txt"
+    print_color "WHITE" "   Source Example: /home/user/document.pdf | Destination Example: /remote/backup/"
+    print_color "GREEN" "🔹 Complete Folder: /path/to/folder"
+    print_color "WHITE" "   Source Example: /home/user/photos | Destination Example: /remote/backup/"
+    print_color "GREEN" "🔹 Folder Contents: /path/to/folder/*"
+    print_color "WHITE" "   Source Example: /home/user/photos/* | Destination Example: /remote/backup/photos/"
+    print_color "GREEN" "🔹 Pattern Match: /path/to/*.txt"
+    print_color "WHITE" "   Source Example: /home/user/logs/*.log | Destination Example: /remote/logs/"
+    print_color "YELLOW" "💡 Wildcards (*) should be in SOURCE paths, not destination"
+    echo
     
     initialize_transfers_dir
     local transfers_file="$HOME/.scp_manager/scp_saved_transfers.json"
@@ -3986,6 +4266,15 @@ list_transfers() {
 edit_transfer() {
     print_header
     print_section_header "Edit Transfer Configuration"
+    
+    # Display editing guidance
+    echo
+    print_color "BOLD_CYAN" "✏️ Editing Guide:"
+    print_color "GREEN" "🔹 Use wildcards (*) in SOURCE paths for multiple files"
+    print_color "GREEN" "🔹 Avoid wildcards (*) in DESTINATION paths"
+    print_color "GREEN" "🔹 Examples: /path/folder/* (contents), /path/*.txt (pattern)"
+    print_color "YELLOW" "💡 Changes are saved automatically after each edit"
+    echo
     
     initialize_transfers_dir
     local transfers_file="$HOME/.scp_manager/scp_saved_transfers.json"
@@ -4072,16 +4361,35 @@ edit_transfer() {
             4)
                 local current_key=$(echo "$transfer" | jq -r '.ssh_key')
                 echo "Current SSH key: $current_key"
-                echo -n "❯ New SSH key path: "
+                echo -n "❯ New SSH key path or 'x' to cancel: "
                 read new_key
+                if [[ "$new_key" == "x" ]] || [[ "$new_key" == "X" ]]; then
+                    print_status "INFO" "SSH key update cancelled"
+                    continue
+                fi
                 transfer=$(echo "$transfer" | jq ".ssh_key = \"$new_key\"")
                 print_status "SUCCESS" "SSH key updated"
                 ;;
             5)
                 local current_source=$(echo "$transfer" | jq -r '.source_path')
                 echo "Current source: $current_source"
-                echo -n "❯ New source path: "
+                echo
+                print_color "BOLD_CYAN" "📁 Source Path Examples:"
+                print_color "GREEN" "🔹 Single File:"
+                print_color "WHITE" "   Example: /home/user/document.pdf | Remote Example: /var/log/app.log"
+                print_color "GREEN" "🔹 Complete Folder:"
+                print_color "WHITE" "   Example: /home/user/photos | Remote Example: /var/backups/data"
+                print_color "GREEN" "🔹 Folder Contents:"
+                print_color "WHITE" "   Example: /home/user/photos/* | Remote Example: /var/logs/*"
+                print_color "GREEN" "🔹 Pattern Match:"
+                print_color "WHITE" "   Example: /home/user/*.txt | Remote Example: /var/log/*.log"
+                echo
+                echo -n "❯ New source path or 'x' to cancel: "
                 read new_source
+                if [[ "$new_source" == "x" ]] || [[ "$new_source" == "X" ]]; then
+                    print_status "INFO" "Source path update cancelled"
+                    continue
+                fi
                 if [[ -n "$new_source" ]]; then
                     transfer=$(echo "$transfer" | jq ".source_path = \"$new_source\"")
                     print_status "SUCCESS" "Source path updated"
@@ -4090,8 +4398,20 @@ edit_transfer() {
             6)
                 local current_dest=$(echo "$transfer" | jq -r '.dest_path')
                 echo "Current destination: $current_dest"
-                echo -n "❯ New destination path: "
+                echo
+                print_color "BOLD_CYAN" "🎯 Destination Path Examples:"
+                print_color "GREEN" "🔹 To Directory:"
+                print_color "WHITE" "   Example: /home/user/downloads/ | Remote Example: /var/backup/"
+                print_color "GREEN" "🔹 Rename File:"
+                print_color "WHITE" "   Example: /home/user/new_name.pdf | Remote Example: /remote/renamed.txt"
+                print_color "YELLOW" "💡 Avoid wildcards (*) in destination paths"
+                echo
+                echo -n "❯ New destination path or 'x' to cancel: "
                 read new_dest
+                if [[ "$new_dest" == "x" ]] || [[ "$new_dest" == "X" ]]; then
+                    print_status "INFO" "Destination path update cancelled"
+                    continue
+                fi
                 if [[ -n "$new_dest" ]]; then
                     transfer=$(echo "$transfer" | jq ".dest_path = \"$new_dest\"")
                     print_status "SUCCESS" "Destination path updated"
@@ -4168,6 +4488,15 @@ execute_saved_transfer() {
     print_header
     print_section_header "Execute Saved Transfer"
     
+    # Display execution guidance
+    echo
+    print_color "BOLD_CYAN" "🚀 Transfer Execution Guide:"
+    print_color "GREEN" "🔹 Wildcards (*) in paths will be automatically handled"
+    print_color "GREEN" "🔹 Local wildcards: Shell expands before SCP"
+    print_color "GREEN" "🔹 Remote wildcards: Quoted for remote shell expansion"
+    print_color "YELLOW" "💡 Review your paths before executing!"
+    echo
+    
     initialize_transfers_dir
     local transfers_file="$HOME/.scp_manager/scp_saved_transfers.json"
     
@@ -4205,6 +4534,8 @@ execute_saved_transfer() {
     # Get the selected transfer
     local transfer_index=$((transfer_choice - 1))
     local transfer=$(jq -c ".[$transfer_index]" "$transfers_file" 2>/dev/null)
+    local transfer_name=$(echo "$transfer" | jq -r '.name // "unknown"' 2>/dev/null)
+    debug_json "load_transfer" "$transfers_file" "Loading transfer #$transfer_choice: $transfer_name"
     
     if [[ -z "$transfer" || "$transfer" == "null" ]]; then
         print_status "ERROR" "Failed to load transfer configuration"
@@ -4238,7 +4569,7 @@ execute_saved_transfer() {
     print_section_header "Pre-Transfer Validation"
     
     # Step 1: Test connection
-    print_progress "1/3: Testing SSH connection..."
+    print_progress "1/4: Testing SSH connection..."
     if validate_transfer_connection "$host" "$user" "$auth_method" "$ssh_key"; then
         if [[ "$auth_method" == "ssh_key" ]] && [[ -n "$ssh_key" ]]; then
             print_status "SUCCESS" "SSH connection validated (SSH key)"
@@ -4249,26 +4580,33 @@ execute_saved_transfer() {
         if [[ "$auth_method" == "ssh_key" ]] && [[ -n "$ssh_key" ]]; then
             print_status "ERROR" "SSH connection failed with SSH key"
         else
-            print_status "WARNING" "Cannot reach SSH service on port 22"
+            print_status "ERROR" "Cannot reach SSH service on port 22"
         fi
         echo
-        echo -n "❯ Continue anyway? (y/N): "
-        read continue_choice
-        if [[ ! "$continue_choice" =~ ^[Yy] ]]; then
-            print_status "INFO" "Transfer cancelled"
-            return 0
-        fi
+        print_color "RED" "❌ Transfer cannot proceed - remote host is unreachable"
+        print_color "YELLOW" "💡 Please verify:"
+        print_color "YELLOW" "   • Host IP address is correct: $host"
+        print_color "YELLOW" "   • Remote machine is powered on and connected to network"
+        print_color "YELLOW" "   • SSH service is running on port 22"
+        print_color "YELLOW" "   • No firewall blocking SSH connections"
+        echo
+        print_status "INFO" "Transfer cancelled due to connection failure"
+        return 1
     fi
     
     # Step 2: Validate source path
-    print_progress "2/3: Validating source path..."
+    print_progress "2/4: Validating source path..."
     if validate_transfer_source_path "$source_path" "$operation" "$host" "$user" "$auth_method" "$ssh_key"; then
         print_status "SUCCESS" "Source path validated"
     else
         print_status "ERROR" "Source path validation failed"
         echo
-        echo -n "❯ Continue anyway? (y/N): "
+        echo -n "❯ Continue anyway? (y/N) or 'x' to exit: "
         read continue_choice
+        if [[ "$continue_choice" == "x" ]] || [[ "$continue_choice" == "X" ]]; then
+            print_status "INFO" "Transfer cancelled"
+            return 0
+        fi
         if [[ ! "$continue_choice" =~ ^[Yy] ]]; then
             print_status "INFO" "Transfer cancelled"
             return 0
@@ -4276,7 +4614,7 @@ execute_saved_transfer() {
     fi
     
     # Step 3: Validate destination path
-    print_progress "3/3: Validating destination path..."
+    print_progress "3/4: Validating destination path..."
     if validate_transfer_dest_path "$dest_path" "$operation" "$host" "$user" "$auth_method" "$ssh_key"; then
         if [[ "$operation" == "upload" ]] && [[ "$auth_method" != "ssh_key" || -z "$ssh_key" ]]; then
             print_status "SUCCESS" "Destination path validation skipped (password auth - will verify during transfer)"
@@ -4290,56 +4628,139 @@ execute_saved_transfer() {
             print_status "ERROR" "Local destination path validation failed"
         fi
         echo
-        echo -n "❯ Continue anyway? (y/N): "
+        echo -n "❯ Continue anyway? (y/N) or 'x' to exit: "
         read continue_choice
+        if [[ "$continue_choice" == "x" ]] || [[ "$continue_choice" == "X" ]]; then
+            print_status "INFO" "Transfer cancelled"
+            return 0
+        fi
         if [[ ! "$continue_choice" =~ ^[Yy] ]]; then
             print_status "INFO" "Transfer cancelled"
             return 0
         fi
     fi
     
+    # Step 4: Check for potential overwrites
+    print_progress "4/4: Checking for potential overwrites..."
+    check_transfer_overwrites "$source_path" "$dest_path" "$operation" "$host" "$user" "$auth_method" "$ssh_key"
+    local overwrite_result=$?
+    
+    if [[ $overwrite_result -eq 2 ]]; then
+        # User chose to cancel transfer
+        print_status "INFO" "Transfer cancelled by user"
+        return 0
+    elif [[ $overwrite_result -eq 1 ]]; then
+        # Overwrites detected but user chose to continue
+        print_status "WARNING" "Potential overwrites detected - proceeding as requested"
+    else
+        # No overwrites or check failed safely
+        print_status "SUCCESS" "No conflicts detected"
+    fi
+    
     echo
     print_section_header "Ready to Execute"
     print_color "GREEN" "✅ All validations completed"
     
-    # Build and show the enhanced command that will be executed
-    # Temporarily disable ALL debug/verbose output for clean command capture
-    local temp_debug=$DEBUG
-    local temp_verbose=$VERBOSE
-    local temp_verbose_ssh=$VERBOSE_SSH
-    local temp_verbose_scp=$VERBOSE_SCP
-    local temp_verbose_json=$VERBOSE_JSON
-    local temp_verbose_file=$VERBOSE_FILE
-    local temp_verbose_network=$VERBOSE_NETWORK
-    local temp_debug_functions=$DEBUG_FUNCTIONS
-    local temp_debug_variables=$DEBUG_VARIABLES
-    local temp_debug_commands=$DEBUG_COMMANDS
+    # Clean up any temporary files that might contaminate the command
+    rm -f /tmp/.scp_transfer_type /tmp/.scp_final_source /tmp/.scp_clean_dest /tmp/.scp_source_type 2>/dev/null
     
-    # Disable all debug/verbose modes temporarily
-    DEBUG=false
-    VERBOSE=false
-    VERBOSE_SSH=false
-    VERBOSE_SCP=false
-    VERBOSE_JSON=false
-    VERBOSE_FILE=false
-    VERBOSE_NETWORK=false
-    DEBUG_FUNCTIONS=false
-    DEBUG_VARIABLES=false
-    DEBUG_COMMANDS=false
+    # Use the saved SCP command but validate and fix it if needed
+    local enhanced_scp_command="$scp_command"
     
-    local enhanced_scp_command=$(build_enhanced_scp_command "$operation" "$source_path" "$dest_path" "$host" "$user" "$auth_method" "$ssh_key" "true" 2>/dev/null)
+    # Build SCP flags in correct order: -v -r -i
+    local scp_flags=""
     
-    # Restore debug/verbose settings
-    DEBUG=$temp_debug
-    VERBOSE=$temp_verbose
-    VERBOSE_SSH=$temp_verbose_ssh
-    VERBOSE_SCP=$temp_verbose_scp
-    VERBOSE_JSON=$temp_verbose_json
-    VERBOSE_FILE=$temp_verbose_file
-    VERBOSE_NETWORK=$temp_verbose_network
-    DEBUG_FUNCTIONS=$temp_debug_functions
-    DEBUG_VARIABLES=$temp_debug_variables
-    DEBUG_COMMANDS=$temp_debug_commands
+    # Only add verbose flag if explicitly enabled AND debugging is active
+    if [[ "$VERBOSE_SCP" == true && "$DEBUG" == true ]]; then
+        scp_flags="-v"
+        verbose_scp "Added -v flag for SCP verbose output"
+    else
+        verbose_scp "SCP verbose mode disabled - clean output mode"
+    fi
+    
+    # Add recursive flag for directories
+    local needs_recursive=false
+    if [[ "$operation" == "upload" ]]; then
+        if [[ -d "$source_path" ]]; then
+            needs_recursive=true
+            verbose_scp "Directory detected for upload: $source_path"
+        fi
+    elif [[ "$operation" == "download" ]]; then
+        # For downloads, assume no extension means directory
+        if [[ ! "$source_path" =~ \.[a-zA-Z0-9]+$ ]]; then
+            needs_recursive=true
+            verbose_scp "Potential directory detected for download: $source_path"
+        fi
+    fi
+    
+    if [[ "$needs_recursive" == true ]]; then
+        if [[ -n "$scp_flags" ]]; then
+            scp_flags="$scp_flags -r"
+        else
+            scp_flags="-r"
+        fi
+        verbose_scp "Added -r flag for directory transfer"
+    fi
+    
+    # Apply flags to command if any were added
+    if [[ -n "$scp_flags" ]]; then
+        enhanced_scp_command=$(echo "$enhanced_scp_command" | sed "s/^scp /scp $scp_flags /")
+        verbose_scp "Applied SCP flags: $scp_flags"
+    fi
+    
+    # Handle wildcard patterns - remove quotes from wildcard paths so shell can expand them
+    verbose_scp "Wildcard handling: processing paths for proper shell expansion"
+    verbose_scp "Source: $source_path"
+    verbose_scp "Destination: $dest_path"
+    
+    # Check if we have wildcards and need to modify the command
+    if [[ "$source_path" == *"*" ]] || [[ "$dest_path" == *"*" ]]; then
+        verbose_scp "Wildcard detected - removing quotes to enable shell expansion"
+        
+        # Add -r flag for directory transfers if not present
+        if [[ "$enhanced_scp_command" != *"-r"* ]]; then
+            enhanced_scp_command=$(echo "$enhanced_scp_command" | sed 's/scp /scp -r /')
+            verbose_scp "Added -r flag for wildcard transfer"
+        fi
+        
+        # Remove quotes from wildcard paths to allow shell expansion
+        if [[ "$source_path" == *"*" ]]; then
+            enhanced_scp_command=$(echo "$enhanced_scp_command" | sed "s|'$source_path'|$source_path|g")
+            verbose_scp "Removed quotes from source wildcard path: $source_path"
+        fi
+        
+        if [[ "$dest_path" == *"*" ]]; then
+            enhanced_scp_command=$(echo "$enhanced_scp_command" | sed "s|'$dest_path'|$dest_path|g")
+            verbose_scp "Removed quotes from destination wildcard path: $dest_path"
+        fi
+    fi
+    
+    verbose_scp "Final command with wildcard handling: $enhanced_scp_command"
+    
+    # For password authentication, ensure password is available and add sshpass if needed
+    if [[ "$auth_method" == "password" ]]; then
+        # Check if password is available, prompt if not
+        if [[ -z "$REMOTE_PASSWORD" ]]; then
+            echo
+            echo -n "❯ Enter password for $user@$host: "
+            read -s REMOTE_PASSWORD
+            echo
+        fi
+        
+        # Add sshpass if available and not already present
+        if [[ -n "$REMOTE_PASSWORD" ]] && command -v sshpass >/dev/null 2>&1 && [[ ! "$enhanced_scp_command" =~ ^sshpass ]]; then
+            enhanced_scp_command="sshpass -p '$REMOTE_PASSWORD' $enhanced_scp_command"
+            verbose_scp "Added sshpass for password authentication"
+        fi
+    fi
+    
+    # Add verbose flag only if SCP verbose mode is enabled
+    if [[ "$VERBOSE_SCP" == true && ! "$enhanced_scp_command" =~ " -v" ]]; then
+        enhanced_scp_command=$(echo "$enhanced_scp_command" | sed 's/scp /scp -v /')
+        verbose_scp "Added -v flag to show SCP transfer details"
+    elif [[ "$VERBOSE_SCP" == false ]]; then
+        verbose_scp "SCP verbose mode disabled - no -v flag added"
+    fi
     
     echo
     print_color "BOLD_CYAN" "🔍 Command that will be executed:"
@@ -4390,18 +4811,112 @@ execute_saved_transfer() {
         echo "💻 Executing SCP Command:"
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         
-        # Parse and display the command in a readable format
+        # Parse and display the command in a readable format (show the corrected command)
         format_scp_command_display "$enhanced_scp_command"
         
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo
+        print_progress "Starting SCP transfer..."
         
-        # Execute with script to preserve TTY and show live progress, while capturing output
-        script -q -c "$enhanced_scp_command" "$transfer_log" 2>&1
-        local exit_code=$?
+        # Show what files will be transferred
+        if [[ "$operation" == "upload" && -d "$source_path" ]]; then
+            local file_count=$(find "$source_path" -type f 2>/dev/null | wc -l)
+            echo "📁 Transferring directory with $file_count files:"
+            find "$source_path" -type f -printf "  📄 %f\n" 2>/dev/null
+        fi
+        echo
+        
+        # Execute SCP command cleanly
+        print_color "CYAN" "🚀 Executing SCP transfer..."
+        echo
+        
+        # Debug/verbose state will be preserved during SCP execution
+        
+        # Show simple command info - no complex parsing needed
+        print_color "GREEN" "🔧 EXECUTING SCP COMMAND:"
+        echo
+        print_color "CYAN" "📤 Starting file transfer..."
+        echo
+        
+        # No complex parsing needed - execute directly
+        
+        # Save current debug/verbose state
+        local saved_debug="$DEBUG"
+        local saved_verbose="$VERBOSE"
+        local saved_verbose_ssh="$VERBOSE_SSH"
+        local saved_verbose_scp="$VERBOSE_SCP"
+        local saved_verbose_json="$VERBOSE_JSON"
+        
+        # Temporarily disable debug functions during SCP execution but keep SCP verbose and JSON verbose
+        DEBUG=false
+        VERBOSE=false
+        VERBOSE_SSH=false
+        # Keep VERBOSE_SCP and VERBOSE_JSON as-is so they work during transfer
+        
+        # Handle wildcard quoting properly:
+        # - Local wildcards: Remove quotes (let local shell expand)  
+        # - Remote wildcards: Keep quotes (let remote shell expand)
+        
+        # Save and remove password temporarily if present
+        local saved_password=""
+        if [[ "$enhanced_scp_command" =~ sshpass[[:space:]]-p[[:space:]]\'([^\']+)\' ]]; then
+            saved_password="${BASH_REMATCH[1]}"
+            enhanced_scp_command=$(echo "$enhanced_scp_command" | sed "s/sshpass -p '$saved_password'/sshpass -p TEMPPASS/")
+        fi
+        
+        # Remove all quotes first
+        enhanced_scp_command=$(echo "$enhanced_scp_command" | sed "s/'//g")
+        
+        # Re-add quotes only for remote wildcards
+        if [[ "$operation" == "upload" ]]; then
+            # For uploads: destination is remote, re-quote if it has wildcards
+            if [[ "$dest_path" == *"*" ]]; then
+                enhanced_scp_command=$(echo "$enhanced_scp_command" | sed "s|$user@$host:$dest_path|$user@$host:'$dest_path'|g")
+            fi
+        else
+            # For downloads: source is remote, re-quote if it has wildcards  
+            if [[ "$source_path" == *"*" ]]; then
+                enhanced_scp_command=$(echo "$enhanced_scp_command" | sed "s|$user@$host:$source_path|$user@$host:'$source_path'|g")
+            fi
+        fi
+        
+        # Restore password quotes if needed
+        if [[ -n "$saved_password" ]]; then
+            enhanced_scp_command=$(echo "$enhanced_scp_command" | sed "s/sshpass -p TEMPPASS/sshpass -p '$saved_password'/")
+        fi
+        
+        # Execute SCP command with native output visible (mask password for security)
+        local display_command="$enhanced_scp_command"
+        if [[ "$enhanced_scp_command" =~ sshpass[[:space:]]-p[[:space:]]\'([^\']+)\' ]]; then
+            local password="${BASH_REMATCH[1]}"
+            display_command=$(echo "$enhanced_scp_command" | sed "s/sshpass -p '$password'/sshpass -p '******'/g")
+        fi
+        echo "🔄 Executing: $display_command"
+        echo
+        
+        # Execute with proper shell expansion for wildcards
+        eval "$enhanced_scp_command" 2>&1 | tee "$transfer_log"
+        local exit_code=${PIPESTATUS[0]}
+        
+        # Restore debug settings immediately after
+        DEBUG="$saved_debug"
+        VERBOSE="$saved_verbose"
+        VERBOSE_SSH="$saved_verbose_ssh"
+        VERBOSE_SCP="$saved_verbose_scp"
+        VERBOSE_JSON="$saved_verbose_json"
+        
+        echo
+        print_color "CYAN" "📋 SCP execution completed with exit code: $exit_code"
         
         # Read the captured output for analysis
         local scp_output
         scp_output=$(cat "$transfer_log" 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | sed 's/\r/\n/g')
+        
+        # Override exit code if we detect connection failures (SCP sometimes returns 0 incorrectly)
+        if echo "$scp_output" | grep -q "No route to host\|Connection refused\|Connection timed out\|lost connection"; then
+            exit_code=1
+            print_color "YELLOW" "⚠️  Overriding exit code due to detected connection failure"
+        fi
         
         # Clean up
         rm -f "$transfer_log" 2>/dev/null
@@ -4428,11 +4943,12 @@ execute_saved_transfer() {
         
         echo
         # Enhanced transfer analysis
-        analyze_transfer_results "$scp_output" "$exit_code"
+        analyze_transfer_results "$scp_output" "$exit_code" "$source_path"
         
         # Update last_used timestamp if any files were transferred
         if [[ $exit_code -eq 0 ]] || [[ $(echo "$scp_output" | grep -c "100%") -gt 0 ]]; then
             local updated_transfers=$(jq ".[$transfer_index].last_used = \"$(date '+%Y-%m-%d %H:%M:%S')\"" "$transfers_file")
+            debug_json "update_last_used" "$transfers_file" "Updated last_used timestamp for transfer: $transfer_name"
             echo "$updated_transfers" > "$transfers_file"
         fi
         
@@ -4489,12 +5005,38 @@ validate_transfer_source_path() {
     local auth_method="$5"
     local ssh_key="$6"
     
+    # Handle wildcards for validation - strip wildcards to validate parent directory
+    local validation_path="$source_path"
+    local has_wildcard=false
+    
+    if [[ "$source_path" == *"/*" ]]; then
+        # Remove /* from end for validation
+        validation_path="${source_path%/*}"
+        has_wildcard=true
+    elif [[ "$source_path" == *"*" ]]; then
+        # Remove trailing * or *.ext for validation
+        validation_path="$(dirname "$source_path")"
+        has_wildcard=true
+    fi
+    
+    
     if [[ "$operation" == "upload" ]]; then
         # For upload, source is local
-        if [[ -e "$source_path" ]]; then
+        if [[ -e "$validation_path" ]]; then
             # Store type information for later use
-            if [[ -d "$source_path" ]]; then
+            if [[ -d "$validation_path" ]]; then
                 echo "directory" > /tmp/.scp_source_type
+                
+                # Check for empty directory with wildcards
+                if [[ "$has_wildcard" == true ]]; then
+                    shopt -s nullglob
+                    local files=("$source_path")
+                    shopt -u nullglob
+                    if [[ ${#files[@]} -eq 0 ]]; then
+                        print_color "YELLOW" "⚠️  Warning: No files match pattern '$source_path'"
+                        print_color "YELLOW" "   Directory exists but is empty or no files match the wildcard"
+                    fi
+                fi
             else
                 echo "file" > /tmp/.scp_source_type
             fi
@@ -4509,8 +5051,8 @@ validate_transfer_source_path() {
             local ssh_cmd="ssh -o ConnectTimeout=10 -o BatchMode=yes -i '$ssh_key'"
             
             # Check if source exists and determine type
-            if eval "$ssh_cmd $user@$host test -e '$source_path'" >/dev/null 2>&1; then
-                if eval "$ssh_cmd $user@$host test -d '$source_path'" >/dev/null 2>&1; then
+            if eval "$ssh_cmd $user@$host test -e '$validation_path'" >/dev/null 2>&1; then
+                if eval "$ssh_cmd $user@$host test -d '$validation_path'" >/dev/null 2>&1; then
                     echo "directory" > /tmp/.scp_source_type
                 else
                     echo "file" > /tmp/.scp_source_type
@@ -4522,7 +5064,7 @@ validate_transfer_source_path() {
         else
             # For password authentication, we can't validate without prompting
             # Assume the path exists and let the actual transfer handle the error
-            echo "file" > /tmp/.scp_source_type
+            echo "directory" > /tmp/.scp_source_type
             return 0
         fi
     fi
@@ -4536,6 +5078,17 @@ validate_transfer_dest_path() {
     local auth_method="$5"
     local ssh_key="$6"
     
+    # Handle wildcards for validation - strip wildcards to validate parent directory
+    local validation_path="$dest_path"
+    
+    if [[ "$dest_path" == *"/*" ]]; then
+        # Remove /* from end for validation
+        validation_path="${dest_path%/*}"
+    elif [[ "$dest_path" == *"*" ]]; then
+        # Remove trailing * or *.ext for validation
+        validation_path="$(dirname "$dest_path")"
+    fi
+    
     if [[ "$operation" == "upload" ]]; then
         # For upload, destination is remote
         if [[ "$auth_method" == "ssh_key" ]] && [[ -n "$ssh_key" ]]; then
@@ -4543,9 +5096,9 @@ validate_transfer_dest_path() {
             local ssh_cmd="ssh -o ConnectTimeout=10 -o BatchMode=yes -i '$ssh_key'"
             
             # Check if destination directory exists
-            local dest_dir="$dest_path"
-            if [[ "$dest_path" != */ ]]; then
-                dest_dir=$(dirname "$dest_path")
+            local dest_dir="$validation_path"
+            if [[ "$validation_path" != */ ]]; then
+                dest_dir=$(dirname "$validation_path")
             fi
             
             ssh_cmd="$ssh_cmd $user@$host test -d '$dest_dir'"
@@ -4559,14 +5112,117 @@ validate_transfer_dest_path() {
         fi
     else
         # For download, destination is local
-        local dest_dir="$dest_path"
-        if [[ "$dest_path" != */ ]]; then
-            dest_dir=$(dirname "$dest_path")
+        local dest_dir="$validation_path"
+        if [[ "$validation_path" != */ ]]; then
+            dest_dir=$(dirname "$validation_path")
         fi
         
         [[ -d "$dest_dir" ]]
         return $?
     fi
+}
+
+# Function to check for potential file/folder overwrites
+check_transfer_overwrites() {
+    local source_path="$1"
+    local dest_path="$2"
+    local operation="$3"
+    local host="$4"
+    local user="$5"
+    local auth_method="$6"
+    local ssh_key="$7"
+    
+    # Remove wildcards for destination checking
+    local check_dest_path="$dest_path"
+    if [[ "$dest_path" == *"/*" ]]; then
+        check_dest_path="${dest_path%/*}"
+    fi
+    
+    # Extract the source name/pattern for conflict checking
+    local source_name
+    if [[ "$source_path" == *"/*" ]]; then
+        # Source ends with /* - check directory contents
+        source_name="$(basename "${source_path%/*}")"
+    elif [[ "$source_path" == *"*" ]]; then
+        # Source has wildcards - warn about pattern matching
+        source_name="files matching pattern"
+    else
+        # Regular file/directory
+        source_name="$(basename "$source_path")"
+    fi
+    
+    local conflicts_detected=false
+    local conflict_details=""
+    
+    if [[ "$operation" == "upload" ]]; then
+        # Check remote destination for conflicts
+        if [[ "$auth_method" == "ssh_key" ]] && [[ -n "$ssh_key" ]]; then
+            local ssh_cmd="ssh -o ConnectTimeout=10 -o BatchMode=yes -i '$ssh_key'"
+            
+            # Check if destination has items that would be overwritten
+            if [[ "$source_path" == *"/*" ]]; then
+                # Transferring directory contents - check if any contents exist in destination
+                local remote_check="$ssh_cmd $user@$host \"ls -la '$check_dest_path' 2>/dev/null | wc -l\""
+                local item_count=$(eval "$remote_check" 2>/dev/null || echo "0")
+                if [[ "$item_count" -gt 3 ]]; then # More than just . and .. entries
+                    conflicts_detected=true
+                    conflict_details="Directory contents from '$(basename "${source_path%/*}")' will be merged with existing files in '$check_dest_path'"
+                fi
+            else
+                # Regular file/directory transfer
+                local target_path="$check_dest_path/$source_name"
+                if eval "$ssh_cmd $user@$host test -e '$target_path'" >/dev/null 2>&1; then
+                    conflicts_detected=true
+                    if eval "$ssh_cmd $user@$host test -d '$target_path'" >/dev/null 2>&1; then
+                        conflict_details="Directory '$source_name' already exists in destination and will be merged/overwritten"
+                    else
+                        conflict_details="File '$source_name' already exists in destination and will be overwritten"
+                    fi
+                fi
+            fi
+        fi
+    else
+        # Check local destination for conflicts
+        if [[ "$source_path" == *"/*" ]]; then
+            # Transferring directory contents - check if destination has files
+            if [[ -d "$check_dest_path" ]] && [[ $(ls -A "$check_dest_path" 2>/dev/null | wc -l) -gt 0 ]]; then
+                conflicts_detected=true
+                conflict_details="Remote directory contents will be merged with existing files in local directory '$check_dest_path'"
+            fi
+        else
+            # Regular file/directory transfer
+            local target_path="$check_dest_path/$source_name"
+            if [[ -e "$target_path" ]]; then
+                conflicts_detected=true
+                if [[ -d "$target_path" ]]; then
+                    conflict_details="Local directory '$source_name' already exists and will be merged/overwritten"
+                else
+                    conflict_details="Local file '$source_name' already exists and will be overwritten"
+                fi
+            fi
+        fi
+    fi
+    
+    if [[ "$conflicts_detected" == true ]]; then
+        echo
+        print_color "YELLOW" "⚠️  POTENTIAL OVERWRITE DETECTED"
+        print_color "YELLOW" "$conflict_details"
+        echo
+        print_color "RED" "🔥 WARNING: Existing files/folders with the same names will be replaced!"
+        print_color "YELLOW" "💾 This action cannot be undone. Consider backing up important data first."
+        echo
+        echo -n "❯ Do you want to continue with this transfer? (y/N): "
+        read overwrite_choice
+        if [[ "$overwrite_choice" =~ ^[Yy] ]]; then
+            print_color "GREEN" "✅ User confirmed - proceeding with potential overwrites"
+            return 1  # Overwrites detected but continuing
+        else
+            print_color "BLUE" "🛑 Transfer cancelled to prevent overwrites"
+            return 2  # User cancelled
+        fi
+    fi
+    
+    return 0  # No conflicts detected
 }
 
 # Function to select transfer type
@@ -4603,13 +5259,15 @@ select_transfer_type() {
         print_menu_option "2" "Whole Directory" "Transfer the entire directory (including the directory itself)"
         print_menu_option "3" "Directory Contents" "Transfer only the contents inside the directory"
         print_menu_option "4" "Multiple Files" "Select multiple specific files/directories"
+        print_menu_option "x" "Exit" "Return to previous menu"
         echo
-        echo -n "❯ Select transfer type (1-4): "
+        echo -n "❯ Select transfer type (1-4) or 'x' to exit: "
     else
         print_menu_option "1" "Single File" "Transfer this file"
         print_menu_option "2" "Multiple Files" "Select multiple files from the same directory"
+        print_menu_option "x" "Exit" "Return to previous menu"
         echo
-        echo -n "❯ Select transfer type (1-2): "
+        echo -n "❯ Select transfer type (1-2) or 'x' to exit: "
     fi
     
     local choice
@@ -4651,6 +5309,10 @@ select_transfer_type() {
                 print_status "ERROR" "Invalid choice"
                 return 1
             fi
+            ;;
+        [xX])
+            print_status "INFO" "Transfer cancelled"
+            return 2  # Exit code for cancelled operation
             ;;
         *)
             print_status "ERROR" "Invalid choice"
@@ -4722,22 +5384,19 @@ detect_transfer_type_from_saved() {
     local operation="$3"
     
     # Check if destination path has wildcard (indicates directory contents transfer)
-    if [[ "$dest_path" == *"*" ]]; then
+    if [[ "$dest_path" == *"/*" ]]; then
         echo "directory_contents" > /tmp/.scp_transfer_type
         # Remove the /* from destination for proper command building
         local clean_dest="${dest_path%/*}"
         echo "$clean_dest" > /tmp/.scp_clean_dest
-        # For directory contents, use the source directory
         echo "$source_path" > /tmp/.scp_final_source
         return 0
     fi
     
     # Check if source path has wildcard
     if [[ "$source_path" == *"*" ]]; then
-        echo "directory_contents" > /tmp/.scp_transfer_type
-        # For source wildcard, extract the base directory
-        local base_dir="${source_path%/*}"
-        echo "$base_dir" > /tmp/.scp_final_source
+        echo "wildcard_source" > /tmp/.scp_transfer_type
+        echo "$source_path" > /tmp/.scp_final_source
         return 0
     fi
     
@@ -4759,8 +5418,9 @@ detect_transfer_type_from_saved() {
 analyze_transfer_results() {
     local scp_output="$1"
     local exit_code="$2"
+    local source_path="$3"
     
-    debug_function_entry "analyze_transfer_results" "exit_code=$exit_code"
+    debug_function_entry "analyze_transfer_results" "exit_code=$exit_code source_path=$source_path"
     verbose_scp "Analyzing SCP transfer results"
     
     # Debug: Save output to a log file for troubleshooting (file only)
@@ -4768,49 +5428,48 @@ analyze_transfer_results() {
     echo "$scp_output" > "$debug_file"
     debug_file_operation "write" "$debug_file" "scp output saved for analysis"
     
-    # Count successful transfers more accurately
+    # Count successful transfers using proper SCP output patterns
     local success_count=0
     
-    # Method 1: Count 100% indicators
+    # Method 1: Count "Sink: " patterns which indicate successful file reception
+    local sink_count=$(echo "$scp_output" | grep -c "^Sink: ")
+    verbose_scp "Found $sink_count files with successful completion (Sink patterns)"
+    
+    # Method 2: Count "100%" indicators (for verbose transfers)
     local hundred_percent_count=$(echo "$scp_output" | grep -c "100%")
-    verbose_scp "Found $hundred_percent_count files with 100% completion"
+    verbose_scp "Found $hundred_percent_count files with 100% completion indicators"
     
-    # Method 2: Count files that show completion without errors
-    local file_completion_count=0
-    
-    while IFS= read -r line; do
-        # Skip empty lines
-        [[ -z "$line" ]] && continue
-        
-        # If line contains a file transfer pattern and no error
-        if [[ "$line" =~ [[:space:]]+[0-9]+%[[:space:]]+[0-9]+ ]] && [[ ! "$line" =~ ^scp: ]]; then
-            ((file_completion_count++))
-        fi
-        
-        # Also count files that show successful completion patterns
-        if [[ "$line" =~ \.log[[:space:]]+100%.*[0-9]+\.[0-9]+[KMG]?B/s ]] || 
-           [[ "$line" =~ \.sh[[:space:]]+100%.*[0-9]+\.[0-9]+[KMG]?B/s ]] ||
-           [[ "$line" =~ [[:alnum:]_-]+[[:space:]]+100%.*[0-9]+\.[0-9]+[KMG]?B/s ]]; then
-            ((success_count++))
-        fi
-    done <<< "$scp_output"
-    
-    # Use the higher count as our success indicator
-    if [[ $hundred_percent_count -gt $success_count ]]; then
-        success_count=$hundred_percent_count
+    # Method 3: For directory transfers, estimate based on source directory
+    local directory_file_count=0
+    if [[ -n "$source_path" && -d "$source_path" ]]; then
+        directory_file_count=$(find "$source_path" -type f 2>/dev/null | wc -l)
+        verbose_scp "Source directory contains $directory_file_count files"
     fi
     
-    verbose_scp "Detected $success_count successful file transfers"
-    
-    # Count different types of errors
+    # Count different types of errors FIRST before determining success
     local permission_errors=$(echo "$scp_output" | grep -c "Permission denied")
-    local no_such_file_errors=$(echo "$scp_output" | grep -c "No such file or directory")
-    local connection_errors=$(echo "$scp_output" | grep -c "Connection refused\|Connection timed out\|Host key verification failed")
+    local no_such_file_errors=$(echo "$scp_output" | grep -c "No such file or directory") 
+    local connection_errors=$(echo "$scp_output" | grep -c "Connection refused\|Connection timed out\|Host key verification failed\|No route to host\|lost connection")
     local space_errors=$(echo "$scp_output" | grep -c "No space left on device")
-    local other_errors=$(echo "$scp_output" | grep -E "scp:" | grep -v -E "Permission denied|No such file|Connection|No space" | wc -l)
+    local other_errors=$(echo "$scp_output" | grep -E "scp:" | grep -v -E "Permission denied|No such file|Connection|No space|debug1:|fd [0-9]+ clearing" | wc -l)
     
     local total_errors=$((permission_errors + no_such_file_errors + connection_errors + space_errors + other_errors))
     verbose_scp "Detected $total_errors total errors in transfer output"
+    
+    # Use the most reliable count
+    if [[ $sink_count -gt 0 ]]; then
+        success_count=$sink_count
+        verbose_scp "Using Sink count: $success_count successful transfers"
+    elif [[ $hundred_percent_count -gt 0 ]]; then
+        success_count=$hundred_percent_count
+        verbose_scp "Using 100% count: $success_count successful transfers"
+    elif [[ $exit_code -eq 0 && $directory_file_count -gt 0 && $connection_errors -eq 0 ]]; then
+        # Fallback: if exit code is 0 AND no connection errors, assume directory transfer succeeded
+        success_count=$directory_file_count
+        verbose_scp "Using directory count fallback: $success_count files"
+    fi
+    
+    verbose_scp "Detected $success_count successful file transfers"
     
     # Add debug information (file only)
     local analysis_file="/tmp/scp_debug_analysis_$(date +%s).log"
@@ -4852,7 +5511,7 @@ analyze_transfer_results() {
             fi
             
             if [[ $connection_errors -gt 0 ]]; then
-                echo "$scp_output" | grep -E "Connection refused|Connection timed out|Host key verification failed" | while IFS= read -r error_line; do
+                echo "$scp_output" | grep -E "Connection refused|Connection timed out|Host key verification failed|No route to host|lost connection" | while IFS= read -r error_line; do
                     print_color "RED" "   ✗ Connection Error: $error_line"
                 done
             fi
@@ -4864,8 +5523,8 @@ analyze_transfer_results() {
                 done
             fi
             
-            # Show any other SCP errors
-            echo "$scp_output" | grep -E "^scp:" | grep -v -E "Permission denied|No such file|Connection|No space" | while IFS= read -r error_line; do
+            # Show any other SCP errors (exclude debug messages)
+            echo "$scp_output" | grep -E "^scp:" | grep -v -E "Permission denied|No such file|Connection|No space|debug1:|fd [0-9]+ clearing" | while IFS= read -r error_line; do
                 print_color "RED" "   ✗ $error_line"
             done
             
@@ -4908,7 +5567,7 @@ analyze_transfer_results() {
             fi
             
             if [[ $connection_errors -gt 0 ]]; then
-                echo "$scp_output" | grep -E "Connection refused|Connection timed out|Host key verification failed" | while IFS= read -r error_line; do
+                echo "$scp_output" | grep -E "Connection refused|Connection timed out|Host key verification failed|No route to host|lost connection" | while IFS= read -r error_line; do
                     print_color "RED" "   ✗ Connection Error: $error_line"
                 done
             fi
@@ -4920,8 +5579,8 @@ analyze_transfer_results() {
                 done
             fi
             
-            # Show any other SCP errors
-            echo "$scp_output" | grep -E "^scp:" | grep -v -E "Permission denied|No such file|Connection|No space" | while IFS= read -r error_line; do
+            # Show any other SCP errors (exclude debug messages)
+            echo "$scp_output" | grep -E "^scp:" | grep -v -E "Permission denied|No such file|Connection|No space|debug1:|fd [0-9]+ clearing" | while IFS= read -r error_line; do
                 print_color "RED" "   ✗ $error_line"
             done
         else
@@ -4934,23 +5593,58 @@ analyze_transfer_results() {
 format_scp_command_display() {
     local command="$1"
     
-    # Extract the base SCP command (scp with its flags)
-    local scp_base=$(echo "$command" | sed -E "s/^(scp[^']*)'.*$/\1/" | sed 's/[[:space:]]*$//')
+    # Clean up the command to remove any debug output that might be embedded
+    command=$(echo "$command" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/🐛 DEBUG: [^[:space:]]*//g' | tr -s ' ')
+    
+    # Hide password in sshpass commands for security
+    local display_command="$command"
+    if [[ "$command" =~ sshpass[[:space:]]-p[[:space:]]\'([^\']+)\' ]]; then
+        local password="${BASH_REMATCH[1]}"
+        display_command=$(echo "$command" | sed "s/sshpass -p '$password'/sshpass -p '****'/g")
+    fi
+    
+    # Extract the base SCP command (scp with its flags) - everything before the first quoted path
+    local scp_base=""
+    if [[ "$display_command" =~ ^([^\']*scp[^\']*) ]]; then
+        scp_base="${BASH_REMATCH[1]}"
+        scp_base="${scp_base% }"  # Remove trailing space
+    else
+        # Fallback - extract up to first quote
+        scp_base=$(echo "$display_command" | cut -d"'" -f1 | sed 's/[[:space:]]*$//')
+    fi
     
     echo "  💻 Base Command: $scp_base"
     echo
     
-    # Extract all quoted file paths
+    # Extract all quoted file paths, excluding sshpass password and SSH key paths
     local paths=()
     while IFS= read -r path; do
-        if [[ -n "$path" ]]; then
+        if [[ -n "$path" && "$path" != "****" && ! "$path" =~ \.ssh/ && ! "$path" =~ _rsa$ && ! "$path" =~ \.pem$ && ! "$path" =~ \.key$ ]]; then
             paths+=("$path")
         fi
-    done < <(echo "$command" | grep -oE "'[^']+'" | sed "s/'//g")
+    done < <(echo "$display_command" | grep -oE "'[^']+'" | sed "s/'//g")
     
     if [[ ${#paths[@]} -eq 0 ]]; then
-        echo "  📁 Files: $command"
-        return
+        # Fallback: try to parse unquoted paths
+        local fallback_paths=()
+        local words=($display_command)
+        local found_scp=false
+        for word in "${words[@]}"; do
+            if [[ "$word" == "scp" ]]; then
+                found_scp=true
+                continue
+            fi
+            if [[ "$found_scp" == true ]] && [[ ! "$word" =~ ^- ]] && [[ "$word" != *"@"* || "$word" == *":"* ]]; then
+                fallback_paths+=("$word")
+            fi
+        done
+        
+        if [[ ${#fallback_paths[@]} -gt 0 ]]; then
+            paths=("${fallback_paths[@]}")
+        else
+            echo "  📁 Raw Command: $display_command"
+            return
+        fi
     fi
     
     # Determine source and destination
@@ -4958,7 +5652,7 @@ format_scp_command_display() {
     local sources=("${paths[@]:0:${#paths[@]}-1}")  # All but last are sources
     
     echo "  📂 Source Files/Directories:"
-    # Always show all sources - no truncation
+    # Show all sources without truncation
     for i in "${!sources[@]}"; do
         if [[ $i -eq $((${#sources[@]}-1)) ]]; then
             echo "    └─ ${sources[i]}"
@@ -5496,8 +6190,14 @@ goto_path_interactive() {
     print_section_header "Go to Specific Path"
     echo "Current directory: $current_path"
     echo
-    echo -n "❯ Enter path to navigate to: "
+    echo -n "❯ Enter path to navigate to or 'c' to cancel: "
     read target_path
+    
+    if [[ "$target_path" == "c" ]] || [[ "$target_path" == "C" ]]; then
+        print_status "INFO" "Navigation cancelled"
+        echo "$current_path" > /tmp/.scp_nav_result
+        return
+    fi
     
     if [[ -z "$target_path" ]]; then
         print_status "INFO" "No path entered, staying in current directory"
@@ -5681,8 +6381,14 @@ goto_path() {
     print_section_header "Go to Specific Path"
     echo "Current directory: $current_path"
     echo
-    echo -n "❯ Enter path to navigate to: "
+    echo -n "❯ Enter path to navigate to or 'c' to cancel: "
     read target_path
+    
+    if [[ "$target_path" == "c" ]] || [[ "$target_path" == "C" ]]; then
+        print_status "INFO" "Navigation cancelled"
+        echo "$current_path"
+        return
+    fi
     
     if [[ -z "$target_path" ]]; then
         print_status "INFO" "No path entered, staying in current directory"
@@ -5805,11 +6511,46 @@ start_remote_navigation() {
     
     print_progress "Testing remote connection to $REMOTE_USER@$REMOTE_HOST..."
     
-    if ! test_ssh_connection "$REMOTE_HOST" "$REMOTE_USER" "$REMOTE_PORT" "$SSH_KEY"; then
+    # Test connection based on authentication method
+    local connection_successful=false
+    if [[ -n "$SSH_KEY" && -f "$SSH_KEY" ]]; then
+        # Use SSH key authentication
+        if test_ssh_connection "$REMOTE_HOST" "$REMOTE_USER" "$REMOTE_PORT" "$SSH_KEY"; then
+            connection_successful=true
+        fi
+    else
+        # Use password authentication
+        if [[ -n "$REMOTE_PASSWORD" ]]; then
+            if test_ssh_connection_with_password "$REMOTE_HOST" "$REMOTE_USER" "$REMOTE_PORT" "$REMOTE_PASSWORD"; then
+                connection_successful=true
+            fi
+        else
+            # Prompt for password if not available
+            echo
+            echo "❯ Enter password for $REMOTE_USER@$REMOTE_HOST (or press Enter to cancel): "
+            read -s password
+            echo
+            if [[ -z "$password" ]]; then
+                print_status "INFO" "Remote navigation cancelled"
+                return 1
+            fi
+            if test_ssh_connection_with_password "$REMOTE_HOST" "$REMOTE_USER" "$REMOTE_PORT" "$password"; then
+                connection_successful=true
+                # Save password for this session
+                REMOTE_PASSWORD="$password"
+            fi
+        fi
+    fi
+    
+    if [[ "$connection_successful" != true ]]; then
         print_status "ERROR" "Cannot connect to remote host"
         echo
         print_color "YELLOW" "💡 Debug info:"
-        print_color "YELLOW" "   • Check if SSH key path is correct: $SSH_KEY"
+        if [[ -n "$SSH_KEY" ]]; then
+            print_color "YELLOW" "   • Check if SSH key path is correct: $SSH_KEY"
+        else
+            print_color "YELLOW" "   • Check if password is correct"
+        fi
         print_color "YELLOW" "   • Verify host is reachable: $REMOTE_HOST"
         print_color "YELLOW" "   • Confirm username is correct: $REMOTE_USER"
         print_color "YELLOW" "   • Check port accessibility: $REMOTE_PORT"
@@ -6106,8 +6847,14 @@ remote_goto_path_interactive() {
     print_section_header "Go to Specific Remote Path"
     echo "Current remote directory: $current_path"
     echo
-    echo -n "❯ Enter remote path to navigate to: "
+    echo -n "❯ Enter remote path to navigate to or 'c' to cancel: "
     read target_path
+    
+    if [[ "$target_path" == "c" ]] || [[ "$target_path" == "C" ]]; then
+        print_status "INFO" "Navigation cancelled"
+        echo "$current_path" > /tmp/.scp_remote_nav_result
+        return
+    fi
     
     if [[ -z "$target_path" ]]; then
         print_status "INFO" "No path entered, staying in current directory"
@@ -6306,8 +7053,14 @@ remote_goto_path() {
     print_section_header "Go to Specific Remote Path"
     echo "Current remote directory: $current_path"
     echo
-    echo -n "❯ Enter remote path to navigate to: "
+    echo -n "❯ Enter remote path to navigate to or 'c' to cancel: "
     read target_path
+    
+    if [[ "$target_path" == "c" ]] || [[ "$target_path" == "C" ]]; then
+        print_status "INFO" "Navigation cancelled"
+        echo "$current_path"
+        return
+    fi
     
     if [[ -z "$target_path" ]]; then
         print_status "INFO" "No path entered, staying in current directory"
@@ -6355,13 +7108,13 @@ remote_goto_path() {
 
 quick_transfer_menu() {
     print_header
-    print_section_header "Quick Transfer"
+    print_section_header "Manual Transfer"
     
     if [[ "$DEBUG" == true ]]; then
         debug_log "Starting quick_transfer_menu"
     fi
     
-    print_color "YELLOW" "ℹ️  Quick Transfer allows you to enter connection details manually each time."
+    print_color "YELLOW" "ℹ️  Manual Transfer allows you to enter connection details manually each time."
     print_color "YELLOW" "   For saved connections, use Options 4 or 5 (Upload/Download Files)."
     
     echo
@@ -6401,8 +7154,12 @@ quick_upload_manual() {
     
     # Get connection details
     echo
-    echo -n "❯ Remote hostname or IP: "
+    echo -n "❯ Remote hostname or IP or 'c' to cancel: "
     read temp_host
+    if [[ "$temp_host" == "c" ]] || [[ "$temp_host" == "C" ]]; then
+        print_status "INFO" "Upload cancelled"
+        return
+    fi
     if [[ -z "$temp_host" ]]; then
         print_status "ERROR" "Host cannot be empty"
         press_enter_to_continue
@@ -6433,14 +7190,23 @@ quick_upload_manual() {
     fi
     
     # Select transfer type
-    if ! select_transfer_type "$local_source" "upload"; then
+    select_transfer_type "$local_source" "upload"
+    local transfer_result=$?
+    if [[ $transfer_result -eq 2 ]]; then
+        # User chose to exit
+        return
+    elif [[ $transfer_result -ne 0 ]]; then
         print_status "ERROR" "Transfer type selection failed"
         press_enter_to_continue
         return
     fi
     
-    echo -n "❯ Remote destination path [default: ~]: "
+    echo -n "❯ Remote destination path [default: ~] or 'x' to exit: "
     read remote_dest
+    if [[ "$remote_dest" == "x" ]] || [[ "$remote_dest" == "X" ]]; then
+        print_status "INFO" "Upload cancelled"
+        return
+    fi
     remote_dest="${remote_dest:-~}"
     
     # Show transfer summary
@@ -6589,14 +7355,23 @@ quick_download_manual() {
     remote_source="${remote_source:-~}"
     
     # Select transfer type
-    if ! select_transfer_type "$remote_source" "download"; then
+    select_transfer_type "$remote_source" "download"
+    local transfer_result=$?
+    if [[ $transfer_result -eq 2 ]]; then
+        # User chose to exit
+        return
+    elif [[ $transfer_result -ne 0 ]]; then
         print_status "ERROR" "Transfer type selection failed"
         press_enter_to_continue
         return
     fi
     
-    echo -n "❯ Local destination path [default: $PWD]: "
+    echo -n "❯ Local destination path [default: $PWD] or 'x' to exit: "
     read local_dest
+    if [[ "$local_dest" == "x" ]] || [[ "$local_dest" == "X" ]]; then
+        print_status "INFO" "Download cancelled"
+        return
+    fi
     local_dest="${local_dest:-$PWD}"
     
     # Create local destination if it doesn't exist
@@ -6607,6 +7382,9 @@ quick_download_manual() {
             return
         }
     fi
+    
+    # Normalize the local destination path (remove trailing slash if present)
+    local_dest="${local_dest%/}"
     
     # Show transfer summary
     echo
@@ -6939,31 +7717,56 @@ edit_connection_fields() {
     
     echo
     print_color "YELLOW" "Current values shown in brackets. Press Enter to keep current value."
+    print_color "CYAN" "Type 'x' at any prompt to exit without saving changes."
     echo
     
     # Get new values
-    echo -n "❯ Connection name [$current_name]: "
+    echo -n "❯ Connection name [$current_name] or 'x' to exit: "
     read new_name
+    if [[ "$new_name" == "x" ]] || [[ "$new_name" == "X" ]]; then
+        print_status "INFO" "Connection edit cancelled - no changes saved"
+        return
+    fi
     new_name="${new_name:-$current_name}"
     
-    echo -n "❯ Remote hostname or IP [$current_host]: "
+    echo -n "❯ Remote hostname or IP [$current_host] or 'x' to exit: "
     read new_host
+    if [[ "$new_host" == "x" ]] || [[ "$new_host" == "X" ]]; then
+        print_status "INFO" "Connection edit cancelled - no changes saved"
+        return
+    fi
     new_host="${new_host:-$current_host}"
     
-    echo -n "❯ Remote username [$current_user]: "
+    echo -n "❯ Remote username [$current_user] or 'x' to exit: "
     read new_user
+    if [[ "$new_user" == "x" ]] || [[ "$new_user" == "X" ]]; then
+        print_status "INFO" "Connection edit cancelled - no changes saved"
+        return
+    fi
     new_user="${new_user:-$current_user}"
     
-    echo -n "❯ SSH port [$current_port]: "
+    echo -n "❯ SSH port [$current_port] or 'x' to exit: "
     read new_port
+    if [[ "$new_port" == "x" ]] || [[ "$new_port" == "X" ]]; then
+        print_status "INFO" "Connection edit cancelled - no changes saved"
+        return
+    fi
     new_port="${new_port:-$current_port}"
     
-    echo -n "❯ SSH key path [$current_ssh_key]: "
+    echo -n "❯ SSH key path [$current_ssh_key] or 'x' to exit: "
     read new_ssh_key
+    if [[ "$new_ssh_key" == "x" ]] || [[ "$new_ssh_key" == "X" ]]; then
+        print_status "INFO" "Connection edit cancelled - no changes saved"
+        return
+    fi
     new_ssh_key="${new_ssh_key:-$current_ssh_key}"
     
-    echo -n "❯ Default remote path [$current_remote_path]: "
+    echo -n "❯ Default remote path [$current_remote_path] or 'x' to exit: "
     read new_remote_path
+    if [[ "$new_remote_path" == "x" ]] || [[ "$new_remote_path" == "X" ]]; then
+        print_status "INFO" "Connection edit cancelled - no changes saved"
+        return
+    fi
     new_remote_path="${new_remote_path:-$current_remote_path}"
     
     # Show summary
@@ -6977,8 +7780,12 @@ edit_connection_fields() {
     echo "Remote Path: $new_remote_path"
     
     echo
-    echo -n "❯ Save changes? (y/N) [default: n]: "
+    echo -n "❯ Save changes? (y/N) [default: n] or 'x' to exit: "
     read confirm
+    if [[ "$confirm" == "x" ]] || [[ "$confirm" == "X" ]]; then
+        print_status "INFO" "Connection edit cancelled - no changes saved"
+        return
+    fi
     confirm="${confirm:-n}"
     
     if [[ "$confirm" =~ ^[Yy] ]]; then
@@ -7135,12 +7942,12 @@ test_connection_menu() {
         if [[ -z "$test_ssh_key" ]]; then
             # Password authentication - prompt for password
             echo
-            echo -n "❯ Enter password for $test_user@$test_host: "
+            echo "❯ Enter password for $test_user@$test_host (or press Enter to cancel): "
             read -s password
             echo  # Add newline after hidden password input
             
             if [[ -z "$password" ]]; then
-                print_status "ERROR" "Password cannot be empty"
+                print_status "INFO" "Connection test cancelled"
             else
                 print_progress "Testing with password authentication..."
                 if test_ssh_connection_with_password "$test_host" "$test_user" "$test_port" "$password"; then
@@ -7204,8 +8011,12 @@ export_connections() {
         return
     fi
     
-    echo -n "❯ Export file path [default: $PWD/scp_connections_export.json]: "
+    echo -n "❯ Export file path [default: $PWD/scp_connections_export.json] or 'c' to cancel: "
     read export_path
+    if [[ "$export_path" == "c" ]] || [[ "$export_path" == "C" ]]; then
+        print_status "INFO" "Export cancelled"
+        return 1
+    fi
     export_path="${export_path:-$PWD/scp_connections_export.json}"
     
     if cp "$SAVED_CONNECTIONS_FILE" "$export_path"; then
@@ -7221,8 +8032,13 @@ import_connections() {
     print_header
     print_section_header "Import Connections"
     
-    echo -n "❯ Import file path: "
+    echo -n "❯ Import file path or 'c' to cancel: "
     read import_path
+    
+    if [[ "$import_path" == "c" ]] || [[ "$import_path" == "C" ]]; then
+        print_status "INFO" "Import cancelled"
+        return 1
+    fi
     
     if [[ ! -f "$import_path" ]]; then
         print_status "ERROR" "Import file not found: $import_path"
